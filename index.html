@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebGL Forest</title>
+    <link rel="stylesheet" href="lib/normalize.css">
+    <link rel="stylesheet" href="lib/dat.gui.css">
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; width: 100%; height: 100vh; }
+    </style>
+
+    <!-- VERTEX SHADER -->
+    <script id="vertex-shader" type="x-shader/x-vertex">#version 300 es
+// Posizione del vertice nel modello.
+layout(location = 0) in vec3 a_position;
+// Coordinate UV del vertice.
+layout(location = 1) in vec2 a_uv;
+// Matrice per istanza: traduce, ruota e scala ogni copia del modello.
+layout(location = 2) in mat4 a_instanceMatrix;
+
+// View matrix fornita dalla camera.
+uniform mat4 u_view;
+// Projection matrix prospettica.
+uniform mat4 u_projection;
+
+// UV passate al fragment shader.
+out vec2 v_uv;
+
+void main() {
+    // Conserva le UV originali.
+    v_uv = a_uv;
+    // Trasforma il vertice da spazio modello a clip space.
+    gl_Position = u_projection * u_view * a_instanceMatrix * vec4(a_position, 1.0);
+}
+</script>
+
+    <!-- FRAGMENT SHADER -->
+    <script id="fragment-shader" type="x-shader/x-fragment">#version 300 es
+// Precisione dei float nel fragment shader.
+precision mediump float;
+
+// UV interpolate tra i vertici.
+in vec2 v_uv;
+
+// Colore base del materiale.
+uniform vec4 u_color;
+// Indica se il materiale usa una texture.
+uniform bool u_useTexture;
+// Texture 2D del materiale.
+uniform sampler2D u_texture;
+// Abilita il taglio dei pixel trasparenti.
+uniform bool u_alphaClip;
+// Soglia di alpha clipping.
+uniform float u_alphaThreshold;
+
+// Colore finale scritto nel framebuffer.
+out vec4 outColor;
+
+void main() {
+    // Parte dal colore del materiale.
+    vec4 color = u_color;
+
+    // Se esiste una texture, la moltiplica al colore base.
+    if (u_useTexture) {
+        vec4 texColor = texture(u_texture, v_uv);
+        color *= texColor;
+    }
+
+    // Se il materiale richiede alpha clipping, elimina i pixel troppo trasparenti.
+    if (u_alphaClip && color.a < u_alphaThreshold) {
+        discard;
+    }
+
+    // Restituisce il colore finale.
+    outColor = color;
+}
+</script>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+
+    <script src="lib/gl-matrix.js"></script>
+    <script src="lib/glm_utils.js"></script>
+    <script src="lib/m4.js"></script>
+    <script src="lib/webgl-utils.js"></script>
+    <script src="lib/mesh_utils.js"></script>
+    <script src="js/camera.js"></script>
+    <script src="js/utilities.js"></script>
+    <script src="js/forest.js"></script>
+    <script src="js/scene.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>

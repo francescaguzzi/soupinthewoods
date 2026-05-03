@@ -1,0 +1,32 @@
+# Blender 5.1.1 MTL File: 'provaforests.blend'
+# www.blender.org
+
+newmtl jabami_tronc_mat
+Ns 96.078415
+Ka 1.000000 1.000000 1.000000
+Ks 1.000000 1.000000 1.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd treewood.png
+
+newmtl leave_jabami_00_mat
+Ns 96.078415
+Ka 1.000000 1.000000 1.000000
+Ks 1.000000 1.000000 1.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+illum 2
+map_Kd leave-bright.png
+map_d leave-bright.png
+
+newmtl leave_jabami_01_mat
+Ns 96.078415
+Ka 1.000000 1.000000 1.000000
+Ks 1.000000 1.000000 1.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+illum 2
+map_Kd leave-dark.png
+map_d leave-dark.png
