@@ -141,8 +141,28 @@
     window.addEventListener('resize', () => scene.resize());
     canvas.style.cursor = 'grab';
 
+    // Configurazione animazione del fuoco: scala oscillante e intensità della luce correlata.
+    const fireAnim = {
+        baseScale: 1.0,
+        amplitude: 0.1,
+        speed: 1.0,
+        baseIntensity: (typeof Light !== 'undefined' ? Light.getFireLight().intensity : 3.0),
+    };
 
     function frame() {
+        // Aggiorna animazione del fuoco basata sul tempo.
+        const t = performance.now() / 1000;
+        const scale = fireAnim.baseScale + Math.cos(t * fireAnim.speed) * fireAnim.amplitude;
+        scene.forest.setFireScale(scale);
+
+        // Aggiorna l'intensità della luce del fuoco proporzionalmente alla scala.
+        if (typeof Light !== 'undefined') {
+            const fireLight = Light.getFireLight();
+            if (fireLight) {
+                fireLight.intensity = fireAnim.baseIntensity * (scale / fireAnim.baseScale);
+            }
+        }
+
         // Render continuo a 60 FPS circa.
         scene.render();
         requestAnimationFrame(frame);

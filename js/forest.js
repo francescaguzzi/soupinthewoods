@@ -47,6 +47,11 @@ class Forest {
             textureBaseDir: 'assets/textures/tree/',
         });
 
+        const bushData = await loadOBJModel(gl, 'assets/models/bush.obj', {
+            preferredMaterialName: 'bush',
+            textureBaseDir: 'assets/textures/tree/',
+        });
+
         // Carica le rocce come elementi decorativi.
         const rockData = await loadOBJModel(gl, 'assets/models/rock.obj', {
             preferredMaterialName: 'lambert2',
@@ -106,6 +111,12 @@ class Forest {
             m4.multiply(m4.translation(2, groundTopY, 6), m4.multiply(m4.yRotation(3), m4.scaling(0.6, 0.6, 0.6))),
         ];
 
+        const bushMatrices = [
+            m4.multiply(m4.translation(0, groundTopY, -5), m4.multiply(m4.yRotation(-0.5), m4.scaling(1.0, 1.0, 1.0))),
+            m4.multiply(m4.translation(0, groundTopY, -3), m4.multiply(m4.yRotation(-3), m4.scaling(1.1, 1.1, 1.1))),
+            m4.multiply(m4.translation(6, groundTopY, 8), m4.multiply(m4.yRotation(-0.5), m4.scaling(1.0, 1.0, 1.0))),
+        ];
+
         // Memorizza le matrici del focolare per poterle scalare al runtime.
         this.fireMatrices = fireMatrices;
         
@@ -116,6 +127,7 @@ class Forest {
             this.buildModel(gl, bigTreeData, bigTreeMatrices),
             this.buildModel(gl, smallTreeData, smallTreeMatrices),
             this.buildModel(gl, rockData, rockMatrices),
+            this.buildModel(gl, bushData, bushMatrices),
         ];
         
         // Salva il buffer istanza del focolare per poterlo aggiornare al runtime.

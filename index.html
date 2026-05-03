@@ -20,6 +20,8 @@ layout(location = 0) in vec3 a_position;
 layout(location = 1) in vec2 a_uv;
 // Matrice per istanza: traduce, ruota e scala ogni copia del modello.
 layout(location = 2) in mat4 a_instanceMatrix;
+// Normale del vertice (layout location 6, dopo i 4 attributi della matrice istanza)
+layout(location = 6) in vec3 a_normal;
 
 // View matrix fornita dalla camera.
 uniform mat4 u_view;
@@ -28,12 +30,21 @@ uniform mat4 u_projection;
 
 // UV passate al fragment shader.
 out vec2 v_uv;
+// Posizione mondo del vertice (passata al fragment shader per calcolo luce semplice)
+out vec3 v_worldPos;
+// Normale mondo del vertice (per calcoli speculari)
+out vec3 v_normal;
 
 void main() {
     // Conserva le UV originali.
     v_uv = a_uv;
-    // Trasforma il vertice da spazio modello a clip space.
-    gl_Position = u_projection * u_view * a_instanceMatrix * vec4(a_position, 1.0);
+    // Calcola posizione mondo usando la matrice istanza
+    vec4 worldPos = a_instanceMatrix * vec4(a_position, 1.0);
+    v_worldPos = worldPos.xyz;
+    // Trasforma la normale in spazio mondo usando mat3 della matrice istanza
+    v_normal = normalize(mat3(a_instanceMatrix) * a_normal);
+    // Trasforma il vertice da spazio mondo a clip space.
+    gl_Position = u_projection * u_view * worldPos;
 }
 </script>
 
@@ -44,6 +55,10 @@ precision mediump float;
 
 // UV interpolate tra i vertici.
 in vec2 v_uv;
+// Posizione mondo interpolata dal vertex shader.
+in vec3 v_worldPos;
+// Normale mondo interpolata dal vertex shader.
+in vec3 v_normal;
 
 // Colore base del materiale.
 uniform vec4 u_color;
@@ -55,6 +70,13 @@ uniform sampler2D u_texture;
 uniform bool u_alphaClip;
 // Soglia di alpha clipping.
 uniform float u_alphaThreshold;
+
+// Fuoco: posizione, colore, intensità
+uniform vec3 u_firePosition;
+uniform vec3 u_fireColor;
+uniform float u_fireIntensity;
+// Posizione della fotocamera (worldspace) per calcolo speculare
+uniform vec3 u_viewPosition;
 
 // Colore finale scritto nel framebuffer.
 out vec4 outColor;
@@ -74,8 +96,32 @@ void main() {
         discard;
     }
 
-    // Restituisce il colore finale.
-    outColor = color;
+    // === NIGHTTIME FIRE LIGHTING (Phong model: ambient + diffuse + specular) ===
+    // Ambient notturno molto basso (effetto di cielo notturno)
+    vec3 ambientLight = vec3(0.015, 0.018, 0.022) * color.rgb;
+
+    // Calcolo della distanza dal fuoco e attenuazione omni-direzionale
+    float dist = distance(v_worldPos, u_firePosition);
+    // Attenuazione inversa quadratica con falloff graduale
+    float brightness = u_fireIntensity / (1.0 + 0.08 * dist * dist);
+
+    // Direzione verso la luce del fuoco e verso la camera
+    vec3 L = normalize(u_firePosition - v_worldPos);
+    vec3 V = normalize(u_viewPosition - v_worldPos);
+    vec3 N = normalize(v_normal);
+
+    // DIFFUSE (Phong): luce puntiforme diffusa basata su distanza
+    vec3 diffuseLight = u_fireColor * brightness * color.rgb;
+
+    // SPECULAR (Phong): riflessi realistici su superfici lucide
+    vec3 H = normalize(L + V);
+    float specularIntensity = pow(max(dot(N, H), 0.0), 32.0);
+    vec3 specularLight = u_fireColor * brightness * specularIntensity * 0.6;
+
+    // Combina: ambient notturno + diffuse dal fuoco + specular (modello Phong completo)
+    vec3 finalRgb = ambientLight + diffuseLight + specularLight;
+    finalRgb = clamp(finalRgb, 0.0, 1.0);
+    outColor = vec4(finalRgb, color.a);
 }
 </script>
 </head>
@@ -89,6 +135,7 @@ void main() {
     <script src="lib/mesh_utils.js"></script>
     <script src="js/camera.js"></script>
     <script src="js/utilities.js"></script>
+    <script src="js/light.js"></script>
     <script src="js/forest.js"></script>
     <script src="js/scene.js"></script>
     <script src="js/main.js"></script>

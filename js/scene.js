@@ -31,6 +31,7 @@ class Scene {
             position: gl.getAttribLocation(this.program, 'a_position'),
             uv: gl.getAttribLocation(this.program, 'a_uv'),
             instanceMatrix: gl.getAttribLocation(this.program, 'a_instanceMatrix'),
+            normal: gl.getAttribLocation(this.program, 'a_normal'),
         };
 
         // Legge le uniform una sola volta per evitare lookup ogni frame.
@@ -42,6 +43,12 @@ class Scene {
             textureSampler: gl.getUniformLocation(this.program, 'u_texture'),
             alphaClip: gl.getUniformLocation(this.program, 'u_alphaClip'),
             alphaThreshold: gl.getUniformLocation(this.program, 'u_alphaThreshold'),
+            // Fire light uniforms
+            firePosition: gl.getUniformLocation(this.program, 'u_firePosition'),
+            fireColor: gl.getUniformLocation(this.program, 'u_fireColor'),
+            fireIntensity: gl.getUniformLocation(this.program, 'u_fireIntensity'),
+            // Camera position for specular
+            viewPosition: gl.getUniformLocation(this.program, 'u_viewPosition'),
         };
 
         this.forest = new Forest(gl, this.attribLocations, this.uniformLocations, this.camera);
@@ -61,7 +68,8 @@ class Scene {
 
         // Aggiorna la dimensione del canvas e pulisce il frame buffer.
         this.resize();
-        gl.clearColor(12/255, 8/255, 5/255, 1); // sfondo nero
+        // gl.clearColor(12/255, 8/255, 5/255, 1); 
+        gl.clearColor(0, 0, 0, 1); // Colore di sfondo più scuro per evidenziare il fuoco
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
         // Matrice di proiezione prospettica classica.
@@ -73,6 +81,22 @@ class Scene {
 
         // Usa il programma e lascia alla foresta il rendering delle istanze.
         gl.useProgram(this.program);
+
+        // Imposta le uniform della luce del fuoco
+        if (typeof Light !== 'undefined' && Light.getFireLight) {
+            const fire = Light.getFireLight();
+            if (fire) {
+                if (this.uniformLocations.firePosition) gl.uniform3fv(this.uniformLocations.firePosition, fire.position);
+                if (this.uniformLocations.fireColor) gl.uniform3fv(this.uniformLocations.fireColor, fire.color);
+                if (this.uniformLocations.fireIntensity) gl.uniform1f(this.uniformLocations.fireIntensity, fire.intensity || 1.0);
+            }
+        }
+
+        // Imposta la posizione della camera per il calcolo speculare
+        if (this.uniformLocations.viewPosition && this.camera.getPosition) {
+            gl.uniform3fv(this.uniformLocations.viewPosition, this.camera.getPosition());
+        }
+
         this.forest.render(viewMatrix, projectionMatrix);
     }
 

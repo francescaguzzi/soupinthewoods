@@ -233,8 +233,58 @@ function meshToGeometry(mesh, allowedMaterialIndices = null) {
 	return {
 		positions: new Float32Array(positions),
 		uvs: new Float32Array(uvs),
+		normals: computeNormalsFromPositions(new Float32Array(positions)),
 		vertexCount: positions.length / 3,
 	};
+}
+
+// Calcola normali lisce per triangoli ordinate per posizione
+function computeNormalsFromPositions(positions) {
+	const n = positions.length;
+	const normals = new Float32Array(n);
+	const tempNormals = new Float32Array(n);
+
+	// Accumula normali di faccia sui vertici
+	for (let i = 0; i < n; i += 9) {
+		// Vertici del triangolo
+		const v0 = [positions[i + 0], positions[i + 1], positions[i + 2]];
+		const v1 = [positions[i + 3], positions[i + 4], positions[i + 5]];
+		const v2 = [positions[i + 6], positions[i + 7], positions[i + 8]];
+
+		// Calcola edge vectors
+		const u = [v1[0] - v0[0], v1[1] - v0[1], v1[2] - v0[2]];
+		const v = [v2[0] - v0[0], v2[1] - v0[1], v2[2] - v0[2]];
+
+		// Cross product: face normal
+		let nx = u[1] * v[2] - u[2] * v[1];
+		let ny = u[2] * v[0] - u[0] * v[2];
+		let nz = u[0] * v[1] - u[1] * v[0];
+
+		// Normalize
+		const len = Math.hypot(nx, ny, nz) || 1.0;
+		nx /= len; ny /= len; nz /= len;
+
+		// Aggiungi normale di faccia ai 3 vertici
+		for (let j = 0; j < 3; j++) {
+			const idx = i + j * 3;
+			tempNormals[idx + 0] += nx;
+			tempNormals[idx + 1] += ny;
+			tempNormals[idx + 2] += nz;
+		}
+	}
+
+	// Normalizza le normali per vertice
+	for (let i = 0; i < n; i += 3) {
+		const x = tempNormals[i + 0];
+		const y = tempNormals[i + 1];
+		const z = tempNormals[i + 2];
+		const l = Math.hypot(x, y, z) || 1.0;
+		normals[i + 0] = x / l;
+		normals[i + 1] = y / l;
+		normals[i + 2] = z / l;
+	}
+
+	return normals;
 }
 
 // ============================================================================
@@ -266,6 +316,16 @@ function createInstancedModel(gl, geometry, attribLocations, instanceMatrices) {
 	gl.enableVertexAttribArray(attribLocations.uv);
 	// Ogni vertice ha 2 float (u, v)
 	gl.vertexAttribPointer(attribLocations.uv, 2, gl.FLOAT, false, 0, 0);
+
+	// ========== NORMAL ATTRIBUTE ==========
+	if (geometry.normals && attribLocations.normal !== undefined && attribLocations.normal !== -1) {
+		const normalBuffer = gl.createBuffer();
+		gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+		gl.bufferData(gl.ARRAY_BUFFER, geometry.normals, gl.STATIC_DRAW);
+		gl.enableVertexAttribArray(attribLocations.normal);
+		// Ogni vertice ha 3 float (x, y, z)
+		gl.vertexAttribPointer(attribLocations.normal, 3, gl.FLOAT, false, 0, 0);
+	}
 
 	// ========== INSTANCE MATRIX ATTRIBUTE ==========
 	// Una matrice 4x4 occupa 4 attribute locations (ogni riga è un vec4).
@@ -418,7 +478,7 @@ async function loadOBJModel(gl, objUrl, options = {}) {
 			texture,
 			useTexture: Boolean(texture),
 			alphaClip: shouldAlphaClip(material, textureUrl),
-			alphaThreshold: 0.5,
+			alphaThreshold: 0.9,
 		});
 	}
 
