@@ -31,7 +31,9 @@
     let dragging = false;
     let lastX = 0;
     let lastY = 0;
+    let lastTouchDistance = 0;
 
+    // MOUSE EVENTS
     canvas.addEventListener('mousedown', (event) => {
         // Usa il tasto sinistro del mouse per ruotare la camera.
         if (event.button !== 0) return;
@@ -60,6 +62,55 @@
         // Ruota la camera secondo il drag del mouse (orbita attorno al target).
         camera.orbit(deltaX, deltaY);
     });
+
+    // TOUCH EVENTS
+    canvas.addEventListener('touchstart', (event) => {
+        if (event.touches.length === 1) {
+            // Un dito: drag per ruotare la camera
+            dragging = true;
+            lastX = event.touches[0].clientX;
+            lastY = event.touches[0].clientY;
+        } else if (event.touches.length === 2) {
+            // Due dita: pinch per lo zoom
+            dragging = false;
+            const dx = event.touches[0].clientX - event.touches[1].clientX;
+            const dy = event.touches[0].clientY - event.touches[1].clientY;
+            lastTouchDistance = Math.sqrt(dx * dx + dy * dy);
+        }
+    }, { passive: true });
+
+    canvas.addEventListener('touchmove', (event) => {
+        if (event.touches.length === 1 && dragging) {
+            // Un dito in movimento: ruota la camera
+            const deltaX = event.touches[0].clientX - lastX;
+            const deltaY = event.touches[0].clientY - lastY;
+            lastX = event.touches[0].clientX;
+            lastY = event.touches[0].clientY;
+
+            camera.orbit(deltaX, deltaY);
+        } else if (event.touches.length === 2) {
+            // Due dita in movimento: pinch zoom
+            const dx = event.touches[0].clientX - event.touches[1].clientX;
+            const dy = event.touches[0].clientY - event.touches[1].clientY;
+            const currentDistance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (lastTouchDistance > 0) {
+                const delta = currentDistance - lastTouchDistance;
+                // Inverti il delta per zoom intuitivo (pinch out = zoom in)
+                camera.zoom(-delta * 10);
+            }
+            lastTouchDistance = currentDistance;
+        }
+    }, { passive: true });
+
+    canvas.addEventListener('touchend', (event) => {
+        if (event.touches.length < 2) {
+            lastTouchDistance = 0;
+        }
+        if (event.touches.length === 0) {
+            dragging = false;
+        }
+    }, { passive: true });
 
     canvas.addEventListener('wheel', (event) => {
         // Evita lo scroll della pagina e usa la rotella per lo zoom.

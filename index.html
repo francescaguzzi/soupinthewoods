@@ -2,13 +2,14 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>WebGL Forest</title>
     <link rel="stylesheet" href="lib/normalize.css">
     <link rel="stylesheet" href="lib/dat.gui.css">
     <style>
-        body { margin: 0; overflow: hidden; }
-        canvas { display: block; width: 100%; height: 100vh; }
+        body { margin: 0; overflow: hidden; touch-action: none; }
+        canvas { display: block; width: 100%; height: 100vh; touch-action: none; }
+    </style>
     </style>
 
     <!-- VERTEX SHADER -->
