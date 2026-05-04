@@ -10,5 +10,10 @@ window.Light = (() => {
 		return fireLight;
 	}
 
-	return { getFireLight };
+	function setFireIntensity(newIntensity) {
+		fireLight.intensity = newIntensity;
+		fireLight.ambient = Math.min(1.0, newIntensity / 5); // L'ambient aumenta con l'intensità, ma è limitato a 1.0
+	}
+
+	return { getFireLight, setFireIntensity };
 })();

@@ -27,34 +27,28 @@ class Forest {
 
         // Carica il terreno (ground) dal file OBJ con il suo materiale principale.
         const groundData = await loadOBJModel(gl, 'assets/models/ground.obj', {
-            preferredMaterialName: 'Ground',
             textureBaseDir: 'assets/textures/ground/',
         });
 
         const fireData = await loadOBJModel(gl, 'assets/models/fireplace.obj', {
-            preferredMaterialName: 'Fire',
             textureBaseDir: 'assets/textures/fireplace/',
         });
 
         // Carica un albero grande come template per le istanze multiple.
         const bigTreeData = await loadOBJModel(gl, 'assets/models/big-tree.obj', {
-            preferredMaterialName: 'leave-dark',
             textureBaseDir: 'assets/textures/tree/',
         });
 
         const smallTreeData = await loadOBJModel(gl, 'assets/models/small-tree.obj', {
-            preferredMaterialName: 'leave-dark',
             textureBaseDir: 'assets/textures/tree/',
         });
 
         const bushData = await loadOBJModel(gl, 'assets/models/bush.obj', {
-            preferredMaterialName: 'bush',
             textureBaseDir: 'assets/textures/tree/',
         });
 
         // Carica le rocce come elementi decorativi.
         const rockData = await loadOBJModel(gl, 'assets/models/rock.obj', {
-            preferredMaterialName: 'lambert2',
             textureBaseDir: 'assets/textures/',
         });
 
@@ -189,24 +183,24 @@ class Forest {
         for (let modelIdx = 0; modelIdx < this.models.length; modelIdx++) {
             const model = this.models[modelIdx];
             
-            // Se è il focolare (modelIdx === 1) e la scala è diversa da 1.0, aggiorna le matrici istanza scalate.
-            if (modelIdx === 1 && this.fireScale !== 1.0 && this.fireMatrices && this.fireInstanceBuffer) {
-                // Calcola le matrici scalate del focolare.
-                const scaledMatrices = this.fireMatrices.map(m => 
-                    m4.multiply(m, m4.scaling(this.fireScale, this.fireScale, this.fireScale))
-                );
-                // Flattena le matrici in un unico array.
-                const flatMatrices = new Float32Array(scaledMatrices.length * 16);
-                for (let i = 0; i < scaledMatrices.length; i++) {
-                    flatMatrices.set(scaledMatrices[i], i * 16);
-                }
-                // Aggiorna il buffer istanza con le matrici scalate.
-                gl.bindBuffer(gl.ARRAY_BUFFER, this.fireInstanceBuffer);
-                gl.bufferSubData(gl.ARRAY_BUFFER, 0, flatMatrices);
-            }
-            
             // Itera tutti i renderables di questo modello (uno per materiale).
             for (const renderable of model.renderables) {
+                // Se è il materiale 'Fire' del focolare, aggiorna le matrici istanza scalate.
+                if (modelIdx === 1 && renderable.materialName === 'Fire' && this.fireMatrices && renderable.instanceBuffer) {
+                    // Calcola le matrici scalate del focolare.
+                    const scaledMatrices = this.fireMatrices.map(m => 
+                        m4.multiply(m, m4.scaling(this.fireScale, this.fireScale, this.fireScale))
+                    );
+                    // Flattena le matrici in un unico array.
+                    const flatMatrices = new Float32Array(scaledMatrices.length * 16);
+                    for (let i = 0; i < scaledMatrices.length; i++) {
+                        flatMatrices.set(scaledMatrices[i], i * 16);
+                    }
+                    // Aggiorna il buffer istanza con le matrici scalate.
+                    gl.bindBuffer(gl.ARRAY_BUFFER, renderable.instanceBuffer);
+                    gl.bufferSubData(gl.ARRAY_BUFFER, 0, flatMatrices);
+                }
+                
                 // Associa il VAO di questo materiale.
                 gl.bindVertexArray(renderable.vao);
                 // Imposta il colore base del materiale (RGB + alpha=1).

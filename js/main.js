@@ -96,8 +96,7 @@
             
             if (lastTouchDistance > 0) {
                 const delta = currentDistance - lastTouchDistance;
-                // Inverti il delta per zoom intuitivo (pinch out = zoom in)
-                camera.zoom(-delta * 10);
+                camera.zoom(delta * 10);
             }
             lastTouchDistance = currentDistance;
         }
@@ -121,49 +120,45 @@
     window.addEventListener('keydown', (event) => {
 
         const key = event.key;
-
-        // Modifica la scala del focolare con tasti + e -
-        if (key === '+' || key === '=') {
-            scene.forest.setFireScale(scene.forest.fireScale + 0.1);
-            console.log(`Fire scale: ${scene.forest.fireScale.toFixed(2)}`);
-        } else if (key === '-' || key === '_') {
-            scene.forest.setFireScale(scene.forest.fireScale - 0.1);
-            console.log(`Fire scale: ${scene.forest.fireScale.toFixed(2)}`);
-        }
-
-        // Reset a scala 1.0 con il tasto 'R'
-        if (key === 'r' || key === 'R') {
-            scene.forest.setFireScale(1.0);
-            console.log('Fire scale reset to 1.0');
-        }
+        
     });
 
     window.addEventListener('resize', () => scene.resize());
     canvas.style.cursor = 'grab';
 
-    // Configurazione animazione del fuoco: scala oscillante e intensità della luce correlata.
     const fireAnim = {
         baseScale: 1.0,
-        amplitude: 0.1,
-        speed: 1.0,
+        amplitude: 0.12,
+        speed: 2.0,
         baseIntensity: (typeof Light !== 'undefined' ? Light.getFireLight().intensity : 3.0),
     };
 
     function frame() {
-        // Aggiorna animazione del fuoco basata sul tempo.
+        
+        // Animazione del fuoco
+        // Oscillazione di base (sin) fluida, combinata con noise per imitare il crepitio del fuoco
+        /* ------------------------------------------ */
+        
         const t = performance.now() / 1000;
-        const scale = fireAnim.baseScale + Math.cos(t * fireAnim.speed) * fireAnim.amplitude;
-        scene.forest.setFireScale(scale);
+        
+        const baseSin = Math.sin(t * fireAnim.speed);
+        const highFreq = Math.sin(t * fireAnim.speed * 4.3) * 0.15;
+        const noise = Math.sin((t * 3.7) * 100) * 0.08 +
+                      Math.sin((t * 5.3) * 80) * 0.05;
+        
+        const scale = fireAnim.baseScale + 
+                      (baseSin + highFreq + noise) * fireAnim.amplitude;
+        scene.forest.setFireScale(Math.max(0.1, scale));
 
-        // Aggiorna l'intensità della luce del fuoco proporzionalmente alla scala.
-        if (typeof Light !== 'undefined') {
-            const fireLight = Light.getFireLight();
-            if (fireLight) {
-                fireLight.intensity = fireAnim.baseIntensity * (scale / fireAnim.baseScale);
-            }
+        if (typeof Light !== 'undefined' && Light.setFireIntensity) {
+            // Intensità proporzionale alla scala del fuoco
+            const scaleVariation = scale - fireAnim.baseScale;
+            const intensity = fireAnim.baseIntensity * (1 + scaleVariation);
+            Light.setFireIntensity(intensity);
         }
 
-        // Render continuo a 60 FPS circa.
+        /* ------------------------------------------ */
+
         scene.render();
         requestAnimationFrame(frame);
     }

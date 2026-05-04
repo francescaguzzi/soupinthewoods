@@ -255,33 +255,26 @@ function computeNormalsFromPositions(positions) {
 		const u = [v1[0] - v0[0], v1[1] - v0[1], v1[2] - v0[2]];
 		const v = [v2[0] - v0[0], v2[1] - v0[1], v2[2] - v0[2]];
 
-		// Cross product: face normal
-		let nx = u[1] * v[2] - u[2] * v[1];
-		let ny = u[2] * v[0] - u[0] * v[2];
-		let nz = u[0] * v[1] - u[1] * v[0];
-
-		// Normalize
-		const len = Math.hypot(nx, ny, nz) || 1.0;
-		nx /= len; ny /= len; nz /= len;
+		// Cross product: face normal (usando Cross da glm_utils.js)
+		const faceNormal = Cross(u, v);
+		Normalize(faceNormal);
 
 		// Aggiungi normale di faccia ai 3 vertici
 		for (let j = 0; j < 3; j++) {
 			const idx = i + j * 3;
-			tempNormals[idx + 0] += nx;
-			tempNormals[idx + 1] += ny;
-			tempNormals[idx + 2] += nz;
+			tempNormals[idx + 0] += faceNormal[0];
+			tempNormals[idx + 1] += faceNormal[1];
+			tempNormals[idx + 2] += faceNormal[2];
 		}
 	}
 
-	// Normalizza le normali per vertice
+	// Normalizza le normali per vertice (usando Normalize da glm_utils.js)
 	for (let i = 0; i < n; i += 3) {
-		const x = tempNormals[i + 0];
-		const y = tempNormals[i + 1];
-		const z = tempNormals[i + 2];
-		const l = Math.hypot(x, y, z) || 1.0;
-		normals[i + 0] = x / l;
-		normals[i + 1] = y / l;
-		normals[i + 2] = z / l;
+		const vertexNormal = [tempNormals[i + 0], tempNormals[i + 1], tempNormals[i + 2]];
+		Normalize(vertexNormal);
+		normals[i + 0] = vertexNormal[0];
+		normals[i + 1] = vertexNormal[1];
+		normals[i + 2] = vertexNormal[2];
 	}
 
 	return normals;
@@ -448,7 +441,7 @@ async function loadOBJModel(gl, objUrl, options = {}) {
 	}
 
 	// Raccogli gli indici dei materiali (priorità: preferredMaterialName primo)
-	const materialIndices = collectMaterialIndices(mesh, options.preferredMaterialName);
+	const materialIndices = collectMaterialIndices(mesh);
 	const renderables = [];
 
 	// Per ogni materiale, crea un renderable (VAO + texture + proprietà)
@@ -484,7 +477,6 @@ async function loadOBJModel(gl, objUrl, options = {}) {
 
 	return {
 		renderables,
-		boundingBox: computeBoundingBox(mesh),
-		preferredMaterialName: options.preferredMaterialName || null,
+		boundingBox: computeBoundingBox(mesh)
 	};
 }

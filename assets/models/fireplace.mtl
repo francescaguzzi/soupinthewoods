@@ -15,7 +15,7 @@ newmtl Metal
 Ns 250.000000
 Ka 0.593434 0.593434 0.593434
 Ke 0.000000 0.000000 0.000000
-Ni 1.450000
+Ni 5
 d 1.000000
 illum 3
 map_Kd MetalColor.jpeg
@@ -49,7 +49,7 @@ Ka 1.000000 1.000000 1.000000
 Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
-illum 1
+illum 2
 map_Kd WoodColor.jpeg
 map_Ks WoodSpecular.jpg
 map_Bump -bm 1.000000 WoodNormal.jpeg
@@ -60,7 +60,7 @@ Ka 1.000000 1.000000 1.000000
 Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
-illum 1
+illum 2
 map_Kd TreeEndColor.jpeg
 map_Ks WoodEndSpecular.jpg
 map_Bump -bm 1.000000 WoodEndNormal.jpeg
