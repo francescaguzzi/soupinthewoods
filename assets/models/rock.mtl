@@ -2,11 +2,12 @@
 # www.blender.org
 
 newmtl lambert2
-Ns 0.000000
-Ka 0.513636 0.513636 0.513636
-Ks 0.000000 0.000000 0.000000
+Ns 60                        # shininess più alta = highlight più morbido e diffuso
+Ka 0.600000 0.600000 0.600000  # luce ambientale leggermente più alta
+Kd 0.800000 0.800000 0.800000  # diffuse più luminosa
+Ks 0.300000 0.300000 0.300000  # speculare basso ma non zero → riflessione morbida
 Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
-illum 1
+illum 2
 map_Kd rock.png

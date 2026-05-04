@@ -47,6 +47,10 @@ class Scene {
             firePosition: gl.getUniformLocation(this.program, 'u_firePosition'),
             fireColor: gl.getUniformLocation(this.program, 'u_fireColor'),
             fireIntensity: gl.getUniformLocation(this.program, 'u_fireIntensity'),
+            // Moon light uniforms
+            moonDirection: gl.getUniformLocation(this.program, 'u_moonDirection'),
+            moonColor: gl.getUniformLocation(this.program, 'u_moonColor'),
+            moonIntensity: gl.getUniformLocation(this.program, 'u_moonIntensity'),
             // Camera position for specular
             viewPosition: gl.getUniformLocation(this.program, 'u_viewPosition'),
         };
@@ -89,6 +93,16 @@ class Scene {
                 if (this.uniformLocations.firePosition) gl.uniform3fv(this.uniformLocations.firePosition, fire.position);
                 if (this.uniformLocations.fireColor) gl.uniform3fv(this.uniformLocations.fireColor, fire.color);
                 if (this.uniformLocations.fireIntensity) gl.uniform1f(this.uniformLocations.fireIntensity, fire.intensity || 1.0);
+            }
+        }
+
+        // Imposta le uniform della luce lunare
+        if (typeof Light !== 'undefined' && Light.getMoonLight) {
+            const moon = Light.getMoonLight();
+            if (moon) {
+                if (this.uniformLocations.moonDirection) gl.uniform3fv(this.uniformLocations.moonDirection, moon.position); // Usa position come direzione
+                if (this.uniformLocations.moonColor) gl.uniform3fv(this.uniformLocations.moonColor, moon.color);
+                if (this.uniformLocations.moonIntensity) gl.uniform1f(this.uniformLocations.moonIntensity, moon.intensity || 0.5);
             }
         }
 

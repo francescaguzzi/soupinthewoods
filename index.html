@@ -50,76 +50,75 @@ void main() {
 
     <!-- FRAGMENT SHADER -->
     <script id="fragment-shader" type="x-shader/x-fragment">#version 300 es
-// Precisione dei float nel fragment shader.
 precision mediump float;
 
-// UV interpolate tra i vertici.
-in vec2 v_uv;
-// Posizione mondo interpolata dal vertex shader.
-in vec3 v_worldPos;
-// Normale mondo interpolata dal vertex shader.
-in vec3 v_normal;
+in vec2 v_uv; // UV interpolate tra i vertici.
 
-// Colore base del materiale.
-uniform vec4 u_color;
-// Indica se il materiale usa una texture.
+in vec3 v_worldPos; // Posizione mondo interpolata dal vertex shader.
+in vec3 v_normal; // Normale mondo interpolata dal vertex shader.
+
+uniform vec4 u_color; // Colore base del materiale.
+
 uniform bool u_useTexture;
-// Texture 2D del materiale.
 uniform sampler2D u_texture;
-// Abilita il taglio dei pixel trasparenti.
+
 uniform bool u_alphaClip;
-// Soglia di alpha clipping.
 uniform float u_alphaThreshold;
 
-// Fuoco: posizione, colore, intensità
 uniform vec3 u_firePosition;
 uniform vec3 u_fireColor;
 uniform float u_fireIntensity;
-// Posizione della fotocamera (worldspace) per calcolo speculare
-uniform vec3 u_viewPosition;
 
-// Colore finale scritto nel framebuffer.
-out vec4 outColor;
+uniform vec3 u_moonDirection;
+uniform vec3 u_moonColor;
+uniform float u_moonIntensity;
+
+uniform vec3 u_viewPosition; // Posizione della fotocamera (worldspace) per calcolo speculare
+
+out vec4 outColor; // Colore finale scritto nel framebuffer.
 
 void main() {
-    // Parte dal colore del materiale.
-    vec4 color = u_color;
-
-    // Se esiste una texture, la moltiplica al colore base.
+    
+    vec4 color = u_color; // Parte dal colore del materiale.
     if (u_useTexture) {
         vec4 texColor = texture(u_texture, v_uv);
         color *= texColor;
     }
 
-    // Se il materiale richiede alpha clipping, elimina i pixel troppo trasparenti.
     if (u_alphaClip && color.a < u_alphaThreshold) {
         discard;
     }
 
-    // === NIGHTTIME FIRE LIGHTING (Phong model: ambient + diffuse + specular) ===
-    // Ambient notturno molto basso (effetto di cielo notturno)
-    vec3 ambientLight = vec3(0.015, 0.018, 0.022) * color.rgb;
-
-    // Calcolo della distanza dal fuoco e attenuazione omni-direzionale
-    float dist = distance(v_worldPos, u_firePosition);
-    // Attenuazione inversa quadratica con falloff graduale
-    float brightness = u_fireIntensity / (1.0 + 0.08 * dist * dist);
-
-    // Direzione verso la luce del fuoco e verso la camera
-    vec3 L = normalize(u_firePosition - v_worldPos);
-    vec3 V = normalize(u_viewPosition - v_worldPos);
+    // === NIGHTTIME LIGHTING with FIRE + MOON ===
     vec3 N = normalize(v_normal);
+    vec3 V = normalize(u_viewPosition - v_worldPos);
 
-    // DIFFUSE (Phong): luce puntiforme diffusa basata su distanza
-    vec3 diffuseLight = u_fireColor * brightness * color.rgb;
+    // ========== FUOCO (Luce puntiforme) ==========
+    float dist_fire = distance(v_worldPos, u_firePosition);
+    float brightness_fire = u_fireIntensity / (1.0 + 0.08 * dist_fire * dist_fire);
+    
+    vec3 L_fire = normalize(u_firePosition - v_worldPos);
+    float lambertian_fire = max(dot(N, L_fire), 0.0);
+    float wrappedLambertian_fire = lambertian_fire * 0.7 + 0.3;
+    vec3 diffuseLight_fire = u_fireColor * brightness_fire * wrappedLambertian_fire * color.rgb;
 
-    // SPECULAR (Phong): riflessi realistici su superfici lucide
-    vec3 H = normalize(L + V);
-    float specularIntensity = pow(max(dot(N, H), 0.0), 32.0);
-    vec3 specularLight = u_fireColor * brightness * specularIntensity * 0.6;
+    // Specular dal fuoco (Phong)
+    vec3 H_fire = normalize(L_fire + V);
+    float specularIntensity_fire = pow(max(dot(N, H_fire), 0.0), 32.0);
+    vec3 specularLight_fire = u_fireColor * brightness_fire * specularIntensity_fire * 0.6 * lambertian_fire;
 
-    // Combina: ambient notturno + diffuse dal fuoco + specular (modello Phong completo)
-    vec3 finalRgb = ambientLight + diffuseLight + specularLight;
+    // ========== LUNA (Luce direzionale debole) ==========
+    vec3 L_moon = normalize(-u_moonDirection); // Inverti direzione
+    float lambertian_moon = max(dot(N, L_moon), 0.0);
+    vec3 diffuseLight_moon = u_moonColor * u_moonIntensity * lambertian_moon * color.rgb;
+
+    // Specular dalla luna (molto debole)
+    // vec3 H_moon = normalize(L_moon + V);
+    // float specularIntensity_moon = pow(max(dot(N, H_moon), 0.0), 32.0);
+    // vec3 specularLight_moon = u_moonColor * u_moonIntensity * specularIntensity_moon * 0.15 * lambertian_moon;
+
+    // Combina: ambient + diffuse fuoco + specular fuoco + diffuse luna + specular luna
+    vec3 finalRgb = diffuseLight_fire + specularLight_fire + diffuseLight_moon;
     finalRgb = clamp(finalRgb, 0.0, 1.0);
     outColor = vec4(finalRgb, color.a);
 }
