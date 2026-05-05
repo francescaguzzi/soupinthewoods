@@ -2,8 +2,8 @@ window.Light = (() => {
 
 	const moonLight = {
 		position: [0.3, 1.0, 0.5], 
-		color: [0.015, 0.018, 0.022], // colore freddo e tenue per simulare la luce lunare
-		intensity: 10,
+		color: [0.5, 0.55, 0.7], 
+		intensity: 0.3,
 	};
 
 	const fireLight = {

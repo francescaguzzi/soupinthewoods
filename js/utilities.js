@@ -156,10 +156,9 @@ function materialTexturePath(material) {
 }
 
 // Determina se un materiale deve avere alpha clipping (per foglie trasparenti, etc).
-// Ritorna true se il nome del materiale contiene 'leave'/'leaf' oppure la texture è PNG.
-function shouldAlphaClip(material, textureUrl) {
+function shouldAlphaClip(material) {
 	const name = String(material?.name || '').toLowerCase();
-	return name.includes('leave') || name.includes('leaf') || /\.png$/i.test(textureUrl || '');
+	return name.includes('leave') || name.includes('leaf') || '';
 }
 
 // ============================================================================
@@ -470,7 +469,7 @@ async function loadOBJModel(gl, objUrl, options = {}) {
 			materialColor: materialColor(material),
 			texture,
 			useTexture: Boolean(texture),
-			alphaClip: shouldAlphaClip(material, textureUrl),
+			alphaClip: shouldAlphaClip(material),
 			alphaThreshold: 0.9,
 		});
 	}
