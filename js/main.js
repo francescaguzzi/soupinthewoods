@@ -7,7 +7,7 @@
 
     // Inizializza la scena usando il canvas.
     // Nota: il target della camera verrà impostato dopo aver caricato i modelli.
-    const camera = new Camera([15, 10, 5], [0, 0, 0], [0, 1, 0]);
+    const camera = new Camera([-10, 15, 15], [0, 2, 0], [0, 1, 0]);
     const scene = new Scene(canvas, camera);
     await scene.init();
 

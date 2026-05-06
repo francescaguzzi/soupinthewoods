@@ -83,32 +83,33 @@ class Forest {
         // Alberi: 6 istanze sparse naturalmente attorno al focolare (0, 0)
         // Posizioni relative al focolare per una distribuzione circolare
         const bigTreeMatrices = [
-            m4.multiply(m4.translation(-8, groundTopY, 0), m4.multiply(m4.yRotation(0), m4.scaling(1.0, 1.0, 1.0))),
-            m4.multiply(m4.translation(-2, groundTopY, 0), m4.multiply(m4.yRotation(1.5), m4.scaling(1.0, 1.0, 1.0))),
-            m4.multiply(m4.translation(1, groundTopY, -2), m4.multiply(m4.yRotation(-2), m4.scaling(1.0, 1.0, 1.0))),
-            m4.multiply(m4.translation(6, groundTopY, 5), m4.multiply(m4.yRotation(0.7), m4.scaling(1.0, 1.0, 1.0))),
-            m4.multiply(m4.translation(-10, groundTopY, 8), m4.multiply(m4.yRotation(0), m4.scaling(1.0, 1.0, 1.0))),
+            m4.multiply(m4.translation(5, groundTopY, -6), m4.multiply(m4.yRotation(0), m4.scaling(1.0, 1.0, 1.0))),
+            m4.multiply(m4.translation(7.8, groundTopY, -1), m4.multiply(m4.yRotation(30), m4.scaling(1.0, 1.0, 1.0))),
+            m4.multiply(m4.translation(-2.4, groundTopY, -8), m4.multiply(m4.yRotation(0), m4.scaling(1.0, 1.0, 1.0))),
+            m4.multiply(m4.translation(-6, groundTopY, -6), m4.multiply(m4.yRotation(0.7), m4.scaling(1.0, 1.0, 1.0))),
+            m4.multiply(m4.translation(2.2, groundTopY, 7.7), m4.multiply(m4.yRotation(0), m4.scaling(1.0, 1.0, 1.0))),
         ];
 
         const smallTreeMatrices = [
-            m4.multiply(m4.translation(5, groundTopY, 0), m4.multiply(m4.yRotation(0.7), m4.scaling(1.0, 1.0, 1.0))),
-            m4.multiply(m4.translation(6, groundTopY, 4), m4.multiply(m4.yRotation(1), m4.scaling(1.0, 1.0, 1.0))),
-            m4.multiply(m4.translation(10, groundTopY, 10), m4.multiply(m4.yRotation(0.5), m4.scaling(1.0, 1.0, 1.0))), // bello a sinistra piccolo
-            m4.multiply(m4.translation(0, groundTopY, 3), m4.multiply(m4.yRotation(-1), m4.scaling(1.0, 1.0, 1.0))), 
+            m4.multiply(m4.translation(6.5, groundTopY, -3), m4.multiply(m4.yRotation(15), m4.scaling(1.0, 1.0, 1.0))),
+            m4.multiply(m4.translation(1.2, groundTopY, -6), m4.multiply(m4.yRotation(0), m4.scaling(1.0, 1.0, 1.0))),
+            m4.multiply(m4.translation(6.3, groundTopY, 2.8), m4.multiply(m4.yRotation(20), m4.scaling(1.0, 1.0, 1.0))), // bello a sinistra piccolo
+            m4.multiply(m4.translation(-6.8, groundTopY, -0.5), m4.multiply(m4.yRotation(-1), m4.scaling(1.0, 1.0, 1.0))), 
+            m4.multiply(m4.translation(-3.5, groundTopY, -4), m4.multiply(m4.yRotation(0), m4.scaling(1.0, 1.0, 1.0))),
         ];
 
         // Rocce: 4 istanze sparse intorno al focolare
         const rockMatrices = [
-            m4.multiply(m4.translation(-7, groundTopY, -4), m4.multiply(m4.yRotation(3.5), m4.scaling(0.7, 0.7, 0.7))),
-            m4.multiply(m4.translation(0, groundTopY, 0), m4.multiply(m4.yRotation(0), m4.scaling(1.0, 1.0, 1.0))),
-            m4.multiply(m4.translation(7, groundTopY, -8), m4.multiply(m4.yRotation(0), m4.scaling(0.8, 0.8, 0.8))),
-            m4.multiply(m4.translation(2, groundTopY, 6), m4.multiply(m4.yRotation(3), m4.scaling(0.6, 0.6, 0.6))),
+            m4.multiply(m4.translation(7.2, groundTopY, -6.7), m4.multiply(m4.yRotation(3.5), m4.scaling(1.0, 1.0, 1.0))),
+            m4.multiply(m4.translation(5.4, groundTopY, 6.3), m4.multiply(m4.yRotation(30), m4.scaling(0.6, 0.6, 0.6))),
+            m4.multiply(m4.translation(-6.6, groundTopY, -3.8), m4.multiply(m4.yRotation(0), m4.scaling(0.6, 0.6, 0.6))),
         ];
 
         const bushMatrices = [
-            m4.multiply(m4.translation(0, groundTopY, -5), m4.multiply(m4.yRotation(-0.5), m4.scaling(1.0, 1.0, 1.0))),
-            m4.multiply(m4.translation(0, groundTopY, -3), m4.multiply(m4.yRotation(-3), m4.scaling(1.1, 1.1, 1.1))),
-            m4.multiply(m4.translation(6, groundTopY, 8), m4.multiply(m4.yRotation(-0.5), m4.scaling(1.0, 1.0, 1.0))),
+            m4.multiply(m4.translation(5, groundTopY, -5), m4.multiply(m4.yRotation(-0.5), m4.scaling(1.0, 1.0, 1.0))),
+            m4.multiply(m4.translation(5.4, groundTopY, 5.2), m4.multiply(m4.yRotation(-3), m4.scaling(1.1, 1.1, 1.1))),
+            m4.multiply(m4.translation(-7.2, groundTopY, 0), m4.multiply(m4.yRotation(-0.5), m4.scaling(1.0, 1.0, 1.0))),
+            m4.multiply(m4.translation(2.5, groundTopY, 7.3), m4.multiply(m4.yRotation(1), m4.scaling(0.9, 0.9, 0.9))),
         ];
 
         // Memorizza le matrici del focolare per poterle scalare al runtime.
