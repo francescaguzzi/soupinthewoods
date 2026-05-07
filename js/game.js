@@ -49,19 +49,19 @@ class Game {
             }
         }
         // se clicca sul focolare, ovvero se il ray colpisce l'area del fuoco, cucina la zuppa
-        if (this.forest.isFireplaceClicked(ray.origin, ray.direction) || this.inventory.length >= 4) {
+        if (this.forest.isFireplaceClicked(ray.origin, ray.direction) && this.inventory.length >= 4) {
             this.cookSoup();
         }
     }
 
     cookSoup() {
-        // combinazioni possibili:
-        // 1 rosso + 1 viola = zuppa rosa (effetto curativo)
-        // 1 rosso + 1 marrone = zuppa arancione (effetto di forza)
-        // 1 viola + 1 marrone = zuppa viola (effetto di invisibilità)
-        // 2 rossi = zuppa rossa (effetto di velocità)
-        // 2 viola = zuppa blu (effetto di resistenza)
-        // 2 marroni = zuppa marrone (effetto di rigenerazione)
+        // combinazioni possibili, ai topi può piacere o no:
+        // 1 rosso + 1 viola = zuppa rosa -> no
+        // 1 rosso + 1 marrone = zuppa arancione -> si
+        // 1 viola + 1 marrone = zuppa viola -> no
+        // 2 rossi = zuppa rossa -> no
+        // 2 viola = zuppa blu -> si
+        // 2 marroni = zuppa marrone  -> si
         console.log("Cucinando la zuppa...");
 
 
@@ -72,7 +72,7 @@ class Game {
             else if (item.type === 2) counts.brown++;
         }
 
-        
+        this.forest.setMouseAnimation("bounce");
     }
 
 }

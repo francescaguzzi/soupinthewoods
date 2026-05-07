@@ -109,14 +109,12 @@
             lastTouchDistance = 0;
         }
         if (event.touches.length === 0) {
-            // Verifica se è stato un tap (click) o un drag
+
             if (dragging) {
                 const dragDistance = Math.sqrt(
                     Math.pow(event.changedTouches[0].clientX - touchStartX, 2) + 
                     Math.pow(event.changedTouches[0].clientY - touchStartY, 2)
                 );
-                
-                // Se il movimento è stato piccolo, trattalo come click
                 if (dragDistance < dragThreshold) {
                     game.onCanvasClick(event.changedTouches[0].clientX, event.changedTouches[0].clientY, canvas);
                 }
@@ -145,13 +143,21 @@
         baseIntensity: (typeof Light !== 'undefined' ? Light.getFireLight().intensity : 3.0),
     };
 
-    function frame() {
+    let lastFrameTime = 0;
+
+    function frame(currentTime) {
         
+        // Aggiorna l'animazione del mouse (supporta bounce e nod)
+        const deltaTime = lastFrameTime ? currentTime - lastFrameTime : 0;
+        lastFrameTime = currentTime;
+        
+        scene.forest.updateMouseAnimation(deltaTime);
+
         // Animazione del fuoco
         // Oscillazione di base (sin) fluida, combinata con noise per imitare il crepitio del fuoco
         /* ------------------------------------------ */
         
-        const t = performance.now() / 1000;
+        const t = currentTime/ 1000;
         
         const baseSin = Math.sin(t * fireAnim.speed);
         const highFreq = Math.sin(t * fireAnim.speed * 4.3) * 0.15;
@@ -163,8 +169,7 @@
         scene.forest.setFireScale(Math.max(0.1, scale));
 
         if (typeof Light !== 'undefined' && Light.setFireIntensity) {
-            // Intensità proporzionale alla scala del fuoco
-            const scaleVariation = scale - fireAnim.baseScale;
+            const scaleVariation = scale - fireAnim.baseScale; // Intensità proporzionale alla scala del fuoco
             const intensity = fireAnim.baseIntensity * (1 + scaleVariation);
             Light.setFireIntensity(intensity);
         }

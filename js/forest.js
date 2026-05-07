@@ -1,5 +1,5 @@
 class Forest {
-    // Costruttore della classe Forest: gestisce il caricamento, costruzione e rendering di tutti i modelli di scena.
+    
     constructor(gl, attribLocations, uniformLocations) {
 
         this.gl = gl;
@@ -13,6 +13,7 @@ class Forest {
         this.fireScale = 1.0;
         this.fireMatrices = null;
         this.fireData = null;
+        this.fireModel = null;
 
         this.mushroomData = [];
         this.spawnedMushrooms = [];
@@ -21,12 +22,15 @@ class Forest {
         this.RESPAWN_THRESHOLD = 2; 
 
         this.mouseAnimation = null;
-        this.mouseAnimationStart = null;
-        this.mouseAnimationDuration = 2000; // Durata dell'animazione in ms
+        this.mouseAnimationProgress = 0; // Progresso 0-1
+        this.mouseAnimationDuration = 800; // Durata dell'animazione in ms
         this.mouseMatrices = null;
+        this.originalMouseMatrices = null; 
+        this.mouseModel = null;
     }
 
-    // Metodi privati per gestire la logica di generazione e gestione dei funghi 
+    /* ------------------------------------------ */
+    
     _randomMushroomMatrix() {
         const angle = Math.random() * Math.PI * 2;
         const radius = 5 + Math.random() * 5;
@@ -83,9 +87,9 @@ class Forest {
         if (active <= this.RESPAWN_THRESHOLD) {
             const toSpawn = this.MAX_MUSHROOMS - active;
             for (let i = 0; i < toSpawn; i++) this._spawnMushroom();
-                this.spawnedMushrooms = this.spawnedMushrooms.filter(s => !s.collected);
         }
 
+        this.spawnedMushrooms = this.spawnedMushrooms.filter(s => !s.collected); // puliamo memoria 
         this._rebuildMushroomModels();
         return shroom.meshIdx;
     }
@@ -100,6 +104,93 @@ class Forest {
         }
         return null;
     }
+
+    /* ------------------------------------------ */
+
+    setFireScale(scale) {
+        this.fireScale = Math.max(0.1, scale);
+        this._uploadFireMatrices();
+    }
+
+    _uploadFireMatrices() {
+    if (!this.fireModel || !this.fireMatrices) return;
+    const flat = new Float32Array(this.fireMatrices.length * 16);
+    for (let i = 0; i < this.fireMatrices.length; i++) {
+        flat.set(m4.multiply(this.fireMatrices[i], m4.scaling(this.fireScale, this.fireScale, this.fireScale)), i * 16);
+    }
+    for (const renderable of this.fireModel.renderables) {
+        if (renderable.materialName !== 'Fire' || !renderable.instanceBuffer) continue;
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, renderable.instanceBuffer);
+        this.gl.bufferSubData(this.gl.ARRAY_BUFFER, 0, flat);
+    }
+}
+
+    isFireplaceClicked(rayOrigin, rayDir) {
+        const fireSphere = this.fireData.boundingSphere;
+        const fireMatrix = this.fireMatrices[0];
+        return raySphereIntersect(rayOrigin, rayDir, fireSphere, fireMatrix);
+    }
+
+    /* ------------------------------------------ */
+
+    setMouseAnimation(type) {
+        this.mouseAnimation = type;
+        this.mouseAnimationProgress = 0;
+    }
+
+    updateMouseAnimation(deltaTime) {
+        if (!this.mouseAnimation) return;
+
+        this.mouseAnimationProgress += deltaTime / this.mouseAnimationDuration;
+        
+        const ended = this.mouseAnimationProgress >= 1.0;
+        if (ended) {
+            this.mouseAnimation = null;
+            this.mouseAnimationProgress = 0;
+            this.mouseMatrices = this.originalMouseMatrices.map(m => [...m]);
+        } else {
+            this.mouseMatrices = this._getAnimatedMouseMatrices();
+        }
+
+        // Aggiorna il buffer solo quando necessario
+        this._uploadMouseMatrices();
+    }
+
+    _uploadMouseMatrices() {
+        if (!this.mouseModel) return;
+        const flat = new Float32Array(this.mouseMatrices.length * 16);
+        for (let i = 0; i < this.mouseMatrices.length; i++) flat.set(this.mouseMatrices[i], i * 16);
+        for (const renderable of this.mouseModel.renderables) {
+            if (!renderable.instanceBuffer) continue;
+            this.gl.bindBuffer(this.gl.ARRAY_BUFFER, renderable.instanceBuffer);
+            this.gl.bufferSubData(this.gl.ARRAY_BUFFER, 0, flat);
+        }
+    }
+
+    _getAnimatedMouseMatrices() {
+        if (!this.mouseAnimation) {
+            return this.originalMouseMatrices;
+        }
+
+        const t = this.mouseAnimationProgress * Math.PI * 2; // progresso da 0 a 2π per due bounce completi
+
+        if (this.mouseAnimation === 'bounce') {
+            return this.originalMouseMatrices.map(originalMatrix => {
+                const bounceAmount = Math.abs(Math.sin(t)) * 0.5; // Due bounce consecutivi usando abs(sin)
+                const bounceMatrix = m4.translation(0, bounceAmount, 0);
+                return m4.multiply(originalMatrix, bounceMatrix);
+            });
+        } else if (this.mouseAnimation === 'nod') {
+            return this.originalMouseMatrices.map(originalMatrix => {
+                const nodAmount = Math.sin(t * 2) * 0.3; 
+                const nodMatrix = m4.yRotation(nodAmount);
+                return m4.multiply(originalMatrix, nodMatrix);
+            });
+        }
+        return this.originalMouseMatrices;
+    }
+
+    /* ------------------------------------------ */
 
     async init() {
 
@@ -148,7 +239,6 @@ class Forest {
             )
         ];
 
-        // m4.translation(x, y, z) 
         const bigTreeMatrices = [
             m4.multiply(m4.translation(5, this.groundTopY, -6), m4.multiply(m4.yRotation(0), m4.scaling(1.0, 1.0, 1.0))),
             m4.multiply(m4.translation(7.8, this.groundTopY, -1), m4.multiply(m4.yRotation(30), m4.scaling(1.0, 1.0, 1.0))),
@@ -188,6 +278,8 @@ class Forest {
         this.fireModel = buildModel(gl, this.fireData, fireMatrices, this.attribLocations); // Salva il modello del focolare per l'animazione del fuoco
 
         this.mouseMatrices = mouseMatrices;
+        this.originalMouseMatrices = mouseMatrices.map(m => [...m]); // Copia profonda per le matrici originali
+        this.mouseModel = buildModel(gl, mouseData, mouseMatrices, this.attribLocations); // Salva il modello del topo per l'animazione
 
         this.models = [
             buildModel(gl, groundData, groundMatrices, this.attribLocations),
@@ -196,84 +288,44 @@ class Forest {
             buildModel(gl, smallTreeData, smallTreeMatrices, this.attribLocations),
             buildModel(gl, rockData, rockMatrices, this.attribLocations),
             buildModel(gl, bushData, bushMatrices, this.attribLocations),
-            buildModel(gl, mouseData, mouseMatrices, this.attribLocations),
+            this.mouseModel,
         ];
 
-        // Spawn e renderizza i funghi
         for (let i = 0; i < this.MAX_MUSHROOMS; i++) {
             this._spawnMushroom();
         }
         this._rebuildMushroomModels();
     }
 
-    setFireScale(scale) {
-        this.fireScale = Math.max(0.1, scale);
-    }
-
-    isFireplaceClicked(rayOrigin, rayDir) {
-        const fireSphere = this.fireData.boundingSphere;
-        const fireMatrix = this.fireMatrices[0];
-        return raySphereIntersect(rayOrigin, rayDir, fireSphere, fireMatrix);
-    }
-
     render(viewMatrix, projectionMatrix) {
-        // Esegue il rendering di tutti i modelli e le loro istanze.
+
         const gl = this.gl;
         const { uniformLocations } = this;
-
-        // Imposta le matrici uniforme che vengono usate da TUTTI i vertici.
+        // Imposta le matrici uniform che vengono usate da TUTTI i vertici
         gl.uniformMatrix4fv(uniformLocations.view, false, viewMatrix);
         gl.uniformMatrix4fv(uniformLocations.projection, false, projectionMatrix);
 
-        // Itera tutti i modelli (terreno, fuoco, alberi, rocce).
         for (let modelIdx = 0; modelIdx < this.models.length; modelIdx++) {
+        
             const model = this.models[modelIdx];
-            
-            // Itera tutti i renderables di questo modello (uno per materiale).
             for (const renderable of model.renderables) {
-                // Se è il materiale 'Fire' del focolare, aggiorna le matrici istanza scalate.
-                if (model === this.fireModel && renderable.materialName === 'Fire' && this.fireMatrices && renderable.instanceBuffer) {
-                    // Calcola le matrici scalate del focolare.
-                    const scaledMatrices = this.fireMatrices.map(m => 
-                        m4.multiply(m, m4.scaling(this.fireScale, this.fireScale, this.fireScale))
-                    );
-                    // Flattena le matrici in un unico array.
-                    const flatMatrices = new Float32Array(scaledMatrices.length * 16);
-                    for (let i = 0; i < scaledMatrices.length; i++) {
-                        flatMatrices.set(scaledMatrices[i], i * 16);
-                    }
-                    // Aggiorna il buffer istanza con le matrici scalate.
-                    gl.bindBuffer(gl.ARRAY_BUFFER, renderable.instanceBuffer);
-                    gl.bufferSubData(gl.ARRAY_BUFFER, 0, flatMatrices);
-                }
-                
-                // Associa il VAO di questo materiale.
-                gl.bindVertexArray(renderable.vao);
-                // Imposta il colore base del materiale (RGB + alpha=1).
-                gl.uniform4fv(uniformLocations.color, [...renderable.color, 1.0]);
-                // Abilita/disabilita il campionamento delle texture.
-                gl.uniform1i(uniformLocations.useTexture, renderable.useTexture ? 1 : 0);
-                // Abilita/disabilita alpha clipping (per le foglie trasparenti).
-                gl.uniform1i(uniformLocations.alphaClip, renderable.alphaClip ? 1 : 0);
-                // Threshold per il discardamento dei pixel nel fragment shader.
-                gl.uniform1f(uniformLocations.alphaThreshold, renderable.alphaThreshold ?? 0.5);
 
-                // Associa la texture del materiale se presente.
+                gl.bindVertexArray(renderable.vao);  // Associa il VAO di questo materiale.
+                gl.uniform4fv(uniformLocations.color, [...renderable.color, 1.0]); // Imposta il colore base del materiale (RGB + alpha=1).
+                gl.uniform1i(uniformLocations.useTexture, renderable.useTexture ? 1 : 0); // Abilita/disabilita il campionamento delle texture.
+                gl.uniform1i(uniformLocations.alphaClip, renderable.alphaClip ? 1 : 0); // Abilita/disabilita alpha clipping (per le foglie trasparenti).
+                gl.uniform1f(uniformLocations.alphaThreshold, renderable.alphaThreshold ?? 0.5); 
+
                 if (renderable.texture) {
                     gl.activeTexture(gl.TEXTURE0);
                     gl.bindTexture(gl.TEXTURE_2D, renderable.texture);
                 } else {
-                    gl.activeTexture(gl.TEXTURE0);
                     gl.bindTexture(gl.TEXTURE_2D, null);
                 }
-
-                // Informa il fragment shader su quale sampler leggere la texture.
-                gl.uniform1i(uniformLocations.textureSampler, 0);
-                // Esegue il draw instanced: disegna il triangolo per ogni istanza.
-                gl.drawArraysInstanced(gl.TRIANGLES, 0, renderable.vertexCount, renderable.instanceCount);
+                gl.uniform1i(uniformLocations.textureSampler, 0); // Informa il fragment shader su quale sampler leggere la texture.
+                gl.drawArraysInstanced(gl.TRIANGLES, 0, renderable.vertexCount, renderable.instanceCount); // Istanced rendering
             }
         }
-
         gl.bindVertexArray(null);
     }
 }
