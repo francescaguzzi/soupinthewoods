@@ -48,7 +48,6 @@ class Game {
                 console.log(`Fungo raccolto! ID: ${hitMushroomId}, Tipo: ${this.constructor.mushroomTypes[mushType]}, Inventario: ${this.inventory.length}`);
             }
         }
-        // se clicca sul focolare, ovvero se il ray colpisce l'area del fuoco, cucina la zuppa
         if (this.forest.isFireplaceClicked(ray.origin, ray.direction) && this.inventory.length >= 4) {
             this.cookSoup();
         }

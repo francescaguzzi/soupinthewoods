@@ -30,7 +30,7 @@ class Forest {
     }
 
     /* ------------------------------------------ */
-    
+
     _randomMushroomMatrix() {
         const angle = Math.random() * Math.PI * 2;
         const radius = 5 + Math.random() * 5;
@@ -58,21 +58,55 @@ class Forest {
         });
     }
 
-    // Raggruppa per meshIdx così gli stessi funghi diventano istanze.
-    _rebuildMushroomModels() {
-   
-        this.models = this.models.filter(m => !m._isMushroom);
+    _initMushroomModels() {
+        // Crea un modello per ogni tipo di mesh con MAX_MUSHROOMS istanze placeholder
+        // Usiamo matrici di scala zero per "nascondere" le istanze inutilizzate
+        const hiddenMatrix = m4.scaling(0, 0, 0);
+        const placeholderMatrices = Array(this.MAX_MUSHROOMS).fill(hiddenMatrix);
 
-        const byMesh = [[], [], []];
-        for (const shroom of this.spawnedMushrooms) {
-            if (!shroom.collected) byMesh[shroom.meshIdx].push(shroom.matrix);
-        }
-        // Crea un modello instanced per ogni gruppo non vuoto
         for (let i = 0; i < 3; i++) {
-            if (byMesh[i].length === 0) continue;
-            const model = buildModel(this.gl, this.mushroomData[i], byMesh[i], this.attribLocations);
+            const model = buildModel(this.gl, this.mushroomData[i], placeholderMatrices, this.attribLocations);
             model._isMushroom = true;
+            this.mushroomModelsByMesh[i] = model;
             this.models.push(model);
+        }
+
+        // Carica le matrici reali iniziali
+        this._uploadAllMushroomMatrices();
+    }
+
+    _uploadAllMushroomMatrices() {
+        const gl = this.gl;
+        const hiddenMatrix = m4.scaling(0, 0, 0);
+
+        for (let meshIdx = 0; meshIdx < 3; meshIdx++) {
+            const model = this.mushroomModelsByMesh[meshIdx];
+            if (!model) continue;
+
+            // Raccoglie le matrici attive per questo tipo di mesh
+            const activeMatrices = this.spawnedMushrooms
+                .filter(s => !s.collected && s.meshIdx === meshIdx)
+                .map(s => s.matrix);
+
+            // Riempie fino a MAX_MUSHROOMS con matrici nascoste
+            const flat = new Float32Array(this.MAX_MUSHROOMS * 16);
+            for (let i = 0; i < this.MAX_MUSHROOMS; i++) {
+                const mat = activeMatrices[i] ?? hiddenMatrix;
+                flat.set(mat, i * 16);
+            }
+
+            // Aggiorna il buffer senza ricreare il VAO
+            for (const renderable of model.renderables) {
+                if (!renderable.instanceBuffer) continue;
+                gl.bindBuffer(gl.ARRAY_BUFFER, renderable.instanceBuffer);
+                gl.bufferSubData(gl.ARRAY_BUFFER, 0, flat);
+            }
+
+            // Aggiorna instanceCount per non disegnare istanze nascoste inutilmente
+            const activeCount = Math.max(1, activeMatrices.length);
+            for (const renderable of model.renderables) {
+                renderable.instanceCount = activeCount;
+            }
         }
     }
 
@@ -90,7 +124,7 @@ class Forest {
         }
 
         this.spawnedMushrooms = this.spawnedMushrooms.filter(s => !s.collected); // puliamo memoria 
-        this._rebuildMushroomModels();
+        this._uploadAllMushroomMatrices();
         return shroom.meshIdx;
     }
 
@@ -294,7 +328,9 @@ class Forest {
         for (let i = 0; i < this.MAX_MUSHROOMS; i++) {
             this._spawnMushroom();
         }
-        this._rebuildMushroomModels();
+
+        this.mushroomModelsByMesh = [null, null, null];
+        this._initMushroomModels();
     }
 
     render(viewMatrix, projectionMatrix) {
