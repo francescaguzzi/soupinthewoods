@@ -2,16 +2,13 @@ class Camera {
     
     constructor(position = [0, 0, 0], target = [0, 0, 0], up = [0, 1, 0]) {
         
-        this.minY = 0;
-
-        // Memorizza il punto verso cui la camera orbita.
+        this.minY = 0; // per evitare che la camera vada sotto il terreno
         this.target = target;
 
         // Calcola la distanza dalla camera al target (raggio dell'orbita).
         const toTarget = m4.subtractVectors(position, target);
         this.distance = Math.sqrt(toTarget[0] * toTarget[0] + toTarget[1] * toTarget[1] + toTarget[2] * toTarget[2]);
 
-        // Calcola gli angoli sferici (theta, phi) della posizione attuale.
         this.theta = Math.atan2(toTarget[0], toTarget[2]);
         this.phi = Math.acos(toTarget[1] / this.distance);
 

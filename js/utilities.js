@@ -47,24 +47,18 @@ function isPowerOfTwo(value) {
 // Se la dimensione è potenza di 2, usa mipmapping; altrimenti usa CLAMP_TO_EDGE.
 async function loadTexture(gl, url) {
 	if (!url) return null;
-	// Controlla se è già stata caricata
 	if (textureCache.has(url)) return textureCache.get(url);
 
 	const promise = (async () => {
-		// Crea una texture WebGL vuota
+
 		const texture = gl.createTexture();
 		gl.bindTexture(gl.TEXTURE_2D, texture);
-		// Imposta pixel bianco placeholder mentre carica
 		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([255, 255, 255, 255]));
 
-		// Carica l'immagine dal disco
 		const image = await loadImageResource(url);
 		gl.bindTexture(gl.TEXTURE_2D, texture);
-		// Capovolgi l'asse Y (necessario perché le immagini web sono origin-top-left)
-		gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-		// Carica l'immagine nella texture
+		gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true); // Capovolgi l'asse Y (necessario perché le immagini web sono origin-top-left)
 		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
-
 		// Se l'immagine è potenza di 2, usa mipmapping per qualità migliore
 		if (isPowerOfTwo(image.width) && isPowerOfTwo(image.height)) {
 			gl.generateMipmap(gl.TEXTURE_2D);
@@ -74,56 +68,52 @@ async function loadTexture(gl, url) {
 			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
 		}
-
 		return texture;
 	})();
 
-	// Memorizza la promise nel cache per riutilizzo futuro
 	textureCache.set(url, promise);
 	return promise;
 }
 
 // ============================================================================
-// MESH BOUNDING BOX UTILITIES - Calcolo limiti geometrici
+// MESH BOUNDING BOX UTILITIES 
 // ============================================================================
 
-// Calcola il bounding box (AABB) di una mesh 3D.
-// Ritorna {min: [x,y,z], max: [x,y,z]} rappresentante i limiti X,Y,Z minoranti e majoranti.
-function computeBoundingBox(mesh) {
-	const min = [Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY];
-	const max = [Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY];
+function computeBoundingSphere(mesh) {
+    let minX = Infinity, minY = Infinity, minZ = Infinity;
+    let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
 
-	// Itera tutti i vertici della mesh
-	for (let i = 1; i <= mesh.nvert; i += 1) {
-		const v = mesh.vert[i];
-		if (!v) continue;
-		if (v.x < min[0]) min[0] = v.x;
-		if (v.y < min[1]) min[1] = v.y;
-		if (v.z < min[2]) min[2] = v.z;
-		if (v.x > max[0]) max[0] = v.x;
-		if (v.y > max[1]) max[1] = v.y;
-		if (v.z > max[2]) max[2] = v.z;
-	}
+    for (let i = 1; i <= mesh.nvert; i++) {
+        const v = mesh.vert[i];
+        if (!v) continue;
+        if (v.x < minX) minX = v.x;
+        if (v.y < minY) minY = v.y;
+        if (v.z < minZ) minZ = v.z;
+        if (v.x > maxX) maxX = v.x;
+        if (v.y > maxY) maxY = v.y;
+        if (v.z > maxZ) maxZ = v.z;
+    }
 
-	return { min, max };
+    const center = [(minX+maxX)*0.5, (minY+maxY)*0.5, (minZ+maxZ)*0.5];
+    const radius = Math.max(maxX-minX, maxY-minY, maxZ-minZ) * 0.5;
+    return { center, radius };
 }
 
-// Calcola il centro di un bounding box come media tra min e max.
-function bboxCenter(bbox) {
-	return [
-		(bbox.min[0] + bbox.max[0]) * 0.5,
-		(bbox.min[1] + bbox.max[1]) * 0.5,
-		(bbox.min[2] + bbox.max[2]) * 0.5,
-	];
-}
+function raySphereIntersect(rayOrigin, rayDir, sphere, worldMatrix) {
+   
+    const worldCenter = m4.transformPoint(worldMatrix, sphere.center);
+    // Stima il raggio in world space (approssimazione valida per scale uniformi)
+    const scale = Math.hypot(worldMatrix[0], worldMatrix[1], worldMatrix[2]);
+    const worldRadius = sphere.radius * scale;
 
-// Calcola la dimensione (estensione) di un bounding box conteggiandone la larghezza, altezza, profondità.
-function bboxSize(bbox) {
-	return [
-		bbox.max[0] - bbox.min[0],
-		bbox.max[1] - bbox.min[1],
-		bbox.max[2] - bbox.min[2],
-	];
+    const oc = [
+        rayOrigin[0] - worldCenter[0],
+        rayOrigin[1] - worldCenter[1],
+        rayOrigin[2] - worldCenter[2],
+    ];
+    const b = oc[0]*rayDir[0] + oc[1]*rayDir[1] + oc[2]*rayDir[2];
+    const c = oc[0]*oc[0] + oc[1]*oc[1] + oc[2]*oc[2] - worldRadius * worldRadius;
+    return (b * b - c) >= 0; // true = colpito
 }
 
 // ============================================================================
@@ -145,7 +135,6 @@ function materialTexturePath(material) {
 	return material?.parameter?.get('map_Kd') || material?.parameter?.get('map_d') || material?.parameter?.get('map_Ke') || null;
 }
 
-// Determina se un materiale deve avere alpha clipping (per foglie trasparenti, etc).
 function shouldAlphaClip(material) {
 	const name = String(material?.name || '').toLowerCase();
 	return name.includes('leave');
@@ -170,7 +159,6 @@ function meshToGeometry(mesh, allowedMaterialIndices = null) {
 		if (!face || face.n_v_e < 3) continue;
 
 		if (materialSet && !materialSet.has(face.material ?? 0)) continue;
-
 		// Triangola il poligono in fan (v0-v1-v2, v0-v2-v3, v0-v3-v4, ...)
 		for (let t = 1; t < face.n_v_e - 1; t += 1) {
 			for (const idx of [0, t, t + 1]) {
@@ -189,7 +177,6 @@ function meshToGeometry(mesh, allowedMaterialIndices = null) {
             }
 		}
 	}
-
 	return {
 		positions: new Float32Array(positions),
 		uvs: new Float32Array(uvs),
@@ -217,16 +204,14 @@ function createInstancedModel(gl, geometry, attribLocations, instanceMatrices) {
 	gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
 	gl.bufferData(gl.ARRAY_BUFFER, geometry.positions, gl.STATIC_DRAW);
 	gl.enableVertexAttribArray(attribLocations.position);
-	// Ogni vertice ha 3 float (x, y, z)
-	gl.vertexAttribPointer(attribLocations.position, 3, gl.FLOAT, false, 0, 0);
+	gl.vertexAttribPointer(attribLocations.position, 3, gl.FLOAT, false, 0, 0); // Ogni vertice ha 3 float (x, y, z)
 
 	// ========== UV ATTRIBUTE ==========
 	const uvBuffer = gl.createBuffer();
 	gl.bindBuffer(gl.ARRAY_BUFFER, uvBuffer);
 	gl.bufferData(gl.ARRAY_BUFFER, geometry.uvs, gl.STATIC_DRAW);
 	gl.enableVertexAttribArray(attribLocations.uv);
-	// Ogni vertice ha 2 float (u, v)
-	gl.vertexAttribPointer(attribLocations.uv, 2, gl.FLOAT, false, 0, 0);
+	gl.vertexAttribPointer(attribLocations.uv, 2, gl.FLOAT, false, 0, 0); // Ogni vertice ha 2 float (u, v)
 
 	// ========== NORMAL ATTRIBUTE ==========
 	if (geometry.normals && attribLocations.normal !== undefined && attribLocations.normal !== -1) {
@@ -239,16 +224,13 @@ function createInstancedModel(gl, geometry, attribLocations, instanceMatrices) {
 	}
 
 	// ========== INSTANCE MATRIX ATTRIBUTE ==========
-	// Una matrice 4x4 occupa 4 attribute locations (ogni riga è un vec4).
-	const instanceBuffer = gl.createBuffer();
+	const instanceBuffer = gl.createBuffer(); // Una matrice 4x4 occupa 4 attribute locations (ogni riga è un vec4).
 	gl.bindBuffer(gl.ARRAY_BUFFER, instanceBuffer);
 	// Flatten tutte le matrici istanza in un unico array Float32
 	const flatMatrices = new Float32Array((instanceMatrices.length || 1) * 16);
 	if (instanceMatrices.length === 0) {
-		// Se nessuna matrice, usa identità
 		flatMatrices.set(m4.identity(), 0);
 	} else {
-		// Copia ogni matrice nel buffer
 		for (let i = 0; i < instanceMatrices.length; i += 1) {
 			flatMatrices.set(instanceMatrices[i], i * 16);
 		}
@@ -260,10 +242,8 @@ function createInstancedModel(gl, geometry, attribLocations, instanceMatrices) {
 	for (let i = 0; i < 4; i += 1) {
 		const loc = baseLoc + i;
 		gl.enableVertexAttribArray(loc);
-		// Ogni riga della matrice: 4 float offset di i*16 bytes
-		gl.vertexAttribPointer(loc, 4, gl.FLOAT, false, 64, i * 16);
-		// Divisor = 1 significa che questo attribute avanza di 1 per ogni istanza
-		gl.vertexAttribDivisor(loc, 1);
+		gl.vertexAttribPointer(loc, 4, gl.FLOAT, false, 64, i * 16); // Ogni riga della matrice: 4 float offset di i*16 bytes
+		gl.vertexAttribDivisor(loc, 1); // Divisor = 1 significa che questo attribute avanza di 1 per ogni istanza
 	}
 
 	gl.bindVertexArray(null);
@@ -300,27 +280,21 @@ function buildModel(gl, modelData, instanceMatrices, attribLocations) {
 		};
 		renderables.push(renderableObj);
 	}
-
-	return {
-		renderables,
-		boundingBox: modelData.boundingBox,
-	};
+	return { renderables };
 }
 
 // ============================================================================
-// OBJ/MTL LOADING - Caricamento e parsing di modelli 3D
+// OBJ/MTL LOADING
 // ============================================================================
 
-// Carica un modello OBJ e il suo MTL, poi prepara i dati per il rendering.
+// Carica un modello OBJ ed il suo MTL, poi prepara i dati per il rendering.
 // Ogni renderable corrisponde a un materiale diverso.
 async function loadOBJModel(gl, objUrl, options = {}) {
-	// Carica il file OBJ testuale
+
 	const objText = await loadTextResource(objUrl);
-	// Crea una mesh vuota e parsizza l'OBJ
 	const mesh = new subd_mesh();
 	const result = glmReadOBJ(objText, mesh);
 
-	// Se l'OBJ referenzia un file MTL, caricalo
 	if (result.fileMtl) {
 		try {
 			const mtlUrl = resolveAssetUrl(objUrl, result.fileMtl);
@@ -331,7 +305,6 @@ async function loadOBJModel(gl, objUrl, options = {}) {
 		}
 	}
 
-	// Raccogli gli indici dei materiali 
 	const materialIndices = mesh.materials
         .map((mat, i) => (mat ? i : null))
         .filter(i => i !== null);
@@ -339,14 +312,13 @@ async function loadOBJModel(gl, objUrl, options = {}) {
 
 	const renderables = [];
 
-	// Per ogni materiale, crea un renderable (VAO + texture + proprietà)
+	// Per ogni materiale crea un renderable (VAO + texture + proprietà)
 	for (const materialIndex of materialIndices) {
 		const material = mesh.materials[materialIndex] || null;
-		// Estrai solo le facce di questo materiale
-		const geometry = meshToGeometry(mesh, [materialIndex]);
+	
+		const geometry = meshToGeometry(mesh, [materialIndex]); // estrae solo le facce con il materiale corrente
 		if (geometry.vertexCount === 0) continue;
 
-		// Carica la texture del materiale se referenziata nel MTL
 		const texturePath = materialTexturePath(material);
 		const textureUrl = texturePath ? resolveAssetUrl(options.textureBaseDir || objUrl, texturePath) : null;
 		let texture = null;
@@ -358,7 +330,6 @@ async function loadOBJModel(gl, objUrl, options = {}) {
 			}
 		}
 
-		// Assembla i dati del renderable
 		renderables.push({
 			materialName: material?.name || `material_${materialIndex}`,
 			geometry,
@@ -372,6 +343,6 @@ async function loadOBJModel(gl, objUrl, options = {}) {
 
 	return {
 		renderables,
-		boundingBox: computeBoundingBox(mesh)
+		boundingSphere: options.computeBoundingSphere ? computeBoundingSphere(mesh) : null,
 	};
 }

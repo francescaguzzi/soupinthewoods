@@ -1,19 +1,74 @@
 class Forest {
     // Costruttore della classe Forest: gestisce il caricamento, costruzione e rendering di tutti i modelli di scena.
     constructor(gl, attribLocations, uniformLocations) {
-        // Contesto WebGL2 per operazioni di rendering.
-        this.gl = gl;
-        // Locazioni dei vertex attribute (position, uv, instanceMatrix).
-        this.attribLocations = attribLocations;
-        // Locazioni delle uniform (view, projection, color, texture, alphaClip, etc).
-        this.uniformLocations = uniformLocations;
 
-        // Array di modelli, con renderables raggruppati per materiale.
-        this.models = [];
-        this.focusPoint = [0, 0, 0];
+        this.gl = gl;
+        this.attribLocations = attribLocations; // vertex attribute (position, uv, instanceMatrix).
+        this.uniformLocations = uniformLocations; // (view, projection, color, texture, alphaClip, etc).
+
+        this.models = []; // Array di modelli, con renderables raggruppati per materiale.
         
+        this.groundTopY = 0; 
+
         this.fireScale = 1.0;
         this.fireMatrices = null;
+
+        this.mushroomData = [];
+        this.spawnedMushrooms = [];
+        this.nextMushroomID = 0;
+        this.MAX_MUSHROOMS = 6;
+        this.RESPAWN_THRESHOLD = 2; 
+
+        this.mouseAnimation = null;
+        this.mouseAnimationStart = null;
+        this.mouseAnimationDuration = 2000; // Durata dell'animazione in ms
+        this.mouseMatrices = null;
+    }
+
+    // Metodi privati per gestire la logica di generazione e gestione dei funghi 
+    _randomMushroomMatrix() {
+        const angle = Math.random() * Math.PI * 2;
+        const radius = 5 + Math.random() * 5;
+        const x = Math.cos(angle) * radius;
+        const z = Math.sin(angle) * radius;
+        const rotY = Math.random() * Math.PI * 2;
+        // const scale = 0.7 + Math.random() * 0.6;
+        return m4.multiply(
+            m4.translation(x, this.groundTopY, z),
+            m4.multiply(m4.yRotation(rotY), m4.scaling(1, 1, 1))
+        );
+    }
+
+    _spawnMushroom() {
+        if (this.spawnedMushrooms.length >= this.MAX_MUSHROOMS) return;
+
+        const meshIdx = Math.floor(Math.random() * 3);
+        const matrix = this._randomMushroomMatrix();
+        this.spawnedMushrooms.push({ 
+            id: this.nextMushroomID++, 
+            meshIdx, 
+            matrix,
+            sphere: this.mushroomData[meshIdx].boundingSphere,
+            collected: false,
+        });
+    }
+
+    // Raggruppa per meshIdx così gli stessi funghi diventano istanze.
+    _rebuildMushroomModels() {
+   
+        this.models = this.models.filter(m => !m._isMushroom);
+
+        const byMesh = [[], [], []];
+        for (const shroom of this.spawnedMushrooms) {
+            if (!shroom.collected) byMesh[shroom.meshIdx].push(shroom.matrix);
+        }
+        // Crea un modello instanced per ogni gruppo non vuoto
+        for (let i = 0; i < 3; i++) {
+            if (byMesh[i].length === 0) continue;
+            const model = buildModel(this.gl, this.mushroomData[i], byMesh[i], this.attribLocations);
+            model._isMushroom = true;
+            this.models.push(model);
+        }
     }
 
     async init() {
@@ -43,22 +98,18 @@ class Forest {
             textureBaseDir: 'assets/textures/',
         });
 
-        // for (let i = 1; i <= 3; i++) {
-        //     const mushroomData = await loadOBJModel(gl, `assets/models/mushrooms${i}.obj`, {
-        //         textureBaseDir: 'assets/textures/mushrooms/',
-        //     });
-        // }
+        for (let i = 1; i <= 3; i++) {
+            this.mushroomData[i - 1] = await loadOBJModel(gl, `assets/models/mushrooms${i}.obj`, {
+                textureBaseDir: 'assets/textures/mushrooms/',
+                computeBoundingSphere: true,
+            });
+        }
 
-        const groundTopY = 0 // groundData.boundingBox.max[1];
-        // this.focusPoint = bboxCenter(groundData.boundingBox);
-        // this.focusPoint[1] = groundTopY;
-
-        // NOTE: m4.translation(x, y, z) trasla rispetto all'ORIGINE GLOBALE (0, 0, 0)
         const groundMatrices = [m4.identity()];
 
         const fireMatrices = [
             m4.multiply(
-                m4.translation(0, groundTopY, 0),
+                m4.translation(0, this.groundTopY, 0),
                 m4.multiply(
                     m4.yRotation(90),
                     m4.scaling(1.0, 1.0, 1.0)
@@ -66,43 +117,46 @@ class Forest {
             )
         ];
 
+        // m4.translation(x, y, z) 
         const bigTreeMatrices = [
-            m4.multiply(m4.translation(5, groundTopY, -6), m4.multiply(m4.yRotation(0), m4.scaling(1.0, 1.0, 1.0))),
-            m4.multiply(m4.translation(7.8, groundTopY, -1), m4.multiply(m4.yRotation(30), m4.scaling(1.0, 1.0, 1.0))),
-            m4.multiply(m4.translation(-2.4, groundTopY, -8), m4.multiply(m4.yRotation(0), m4.scaling(1.0, 1.0, 1.0))),
-            m4.multiply(m4.translation(-6, groundTopY, -6), m4.multiply(m4.yRotation(0.7), m4.scaling(1.0, 1.0, 1.0))),
-            m4.multiply(m4.translation(2.2, groundTopY, 7.7), m4.multiply(m4.yRotation(0), m4.scaling(1.0, 1.0, 1.0))),
+            m4.multiply(m4.translation(5, this.groundTopY, -6), m4.multiply(m4.yRotation(0), m4.scaling(1.0, 1.0, 1.0))),
+            m4.multiply(m4.translation(7.8, this.groundTopY, -1), m4.multiply(m4.yRotation(30), m4.scaling(1.0, 1.0, 1.0))),
+            m4.multiply(m4.translation(-2.4, this.groundTopY, -8), m4.multiply(m4.yRotation(0), m4.scaling(1.0, 1.0, 1.0))),
+            m4.multiply(m4.translation(-6, this.groundTopY, -6), m4.multiply(m4.yRotation(0.7), m4.scaling(1.0, 1.0, 1.0))),
+            m4.multiply(m4.translation(2.2, this.groundTopY, 7.7), m4.multiply(m4.yRotation(0), m4.scaling(1.0, 1.0, 1.0))),
         ];
 
         const smallTreeMatrices = [
-            m4.multiply(m4.translation(6.5, groundTopY, -3), m4.multiply(m4.yRotation(15), m4.scaling(1.0, 1.0, 1.0))),
-            m4.multiply(m4.translation(1.2, groundTopY, -6), m4.multiply(m4.yRotation(0), m4.scaling(1.0, 1.0, 1.0))),
-            m4.multiply(m4.translation(6.3, groundTopY, 2.8), m4.multiply(m4.yRotation(20), m4.scaling(1.0, 1.0, 1.0))), // bello a sinistra piccolo
-            m4.multiply(m4.translation(-6.8, groundTopY, -0.5), m4.multiply(m4.yRotation(-1), m4.scaling(1.0, 1.0, 1.0))), 
-            m4.multiply(m4.translation(-3.5, groundTopY, -4), m4.multiply(m4.yRotation(0), m4.scaling(1.0, 1.0, 1.0))),
+            m4.multiply(m4.translation(6.5, this.groundTopY, -3), m4.multiply(m4.yRotation(15), m4.scaling(1.0, 1.0, 1.0))),
+            m4.multiply(m4.translation(1.2, this.groundTopY, -6), m4.multiply(m4.yRotation(0), m4.scaling(1.0, 1.0, 1.0))),
+            m4.multiply(m4.translation(6.3, this.groundTopY, 2.8), m4.multiply(m4.yRotation(20), m4.scaling(1.0, 1.0, 1.0))), // bello a sinistra piccolo
+            m4.multiply(m4.translation(-6.8, this.groundTopY, -0.5), m4.multiply(m4.yRotation(-1), m4.scaling(1.0, 1.0, 1.0))), 
+            m4.multiply(m4.translation(-3.5, this.groundTopY, -4), m4.multiply(m4.yRotation(0), m4.scaling(1.0, 1.0, 1.0))),
         ];
 
         const rockMatrices = [
-            m4.multiply(m4.translation(7.2, groundTopY, -6.7), m4.multiply(m4.yRotation(3.5), m4.scaling(1.0, 1.0, 1.0))),
-            m4.multiply(m4.translation(5.4, groundTopY, 6.3), m4.multiply(m4.yRotation(30), m4.scaling(0.6, 0.6, 0.6))),
-            m4.multiply(m4.translation(-6.6, groundTopY, -3.8), m4.multiply(m4.yRotation(0), m4.scaling(0.6, 0.6, 0.6))),
+            m4.multiply(m4.translation(7.2, this.groundTopY, -6.7), m4.multiply(m4.yRotation(3.5), m4.scaling(1.0, 1.0, 1.0))),
+            m4.multiply(m4.translation(5.4, this.groundTopY, 6.3), m4.multiply(m4.yRotation(30), m4.scaling(0.6, 0.6, 0.6))),
+            m4.multiply(m4.translation(-6.6, this.groundTopY, -3.8), m4.multiply(m4.yRotation(0), m4.scaling(0.6, 0.6, 0.6))),
         ];
 
         const bushMatrices = [
-            m4.multiply(m4.translation(5, groundTopY, -5), m4.multiply(m4.yRotation(-0.5), m4.scaling(1.0, 1.0, 1.0))),
-            m4.multiply(m4.translation(5.4, groundTopY, 5.2), m4.multiply(m4.yRotation(-3), m4.scaling(1.1, 1.1, 1.1))),
-            m4.multiply(m4.translation(-7.2, groundTopY, 0), m4.multiply(m4.yRotation(-0.5), m4.scaling(1.0, 1.0, 1.0))),
-            m4.multiply(m4.translation(2.5, groundTopY, 7.3), m4.multiply(m4.yRotation(1), m4.scaling(0.9, 0.9, 0.9))),
+            m4.multiply(m4.translation(5, this.groundTopY, -5), m4.multiply(m4.yRotation(-0.5), m4.scaling(1.0, 1.0, 1.0))),
+            m4.multiply(m4.translation(5.4, this.groundTopY, 5.2), m4.multiply(m4.yRotation(-3), m4.scaling(1.1, 1.1, 1.1))),
+            m4.multiply(m4.translation(-7.2, this.groundTopY, 0), m4.multiply(m4.yRotation(-0.5), m4.scaling(1.0, 1.0, 1.0))),
+            m4.multiply(m4.translation(2.5, this.groundTopY, 7.3), m4.multiply(m4.yRotation(1), m4.scaling(0.9, 0.9, 0.9))),
         ];
 
         const mouseMatrices = [
-            m4.multiply(m4.translation(2, groundTopY, 2), m4.multiply(m4.yRotation(0), m4.scaling(1.0, 1.0, 1.0))),
-            m4.multiply(m4.translation(-2, groundTopY, -2), m4.multiply(m4.yRotation(180), m4.scaling(1.0, 1.0, 1.0))),
-            m4.multiply(m4.translation(3, groundTopY, -3), m4.multiply(m4.yRotation(45), m4.scaling(0.8, 0.8, 0.8))),
+            m4.multiply(m4.translation(2, this.groundTopY, 0.3), m4.multiply(m4.yRotation(0), m4.scaling(1.0, 1.0, 1.0))),
+            m4.multiply(m4.translation(-2.5, this.groundTopY, -1), m4.multiply(m4.yRotation(160), m4.scaling(1.0, 1.0, 1.0))),
+            m4.multiply(m4.translation(2, this.groundTopY, -2), m4.multiply(m4.yRotation(45), m4.scaling(0.8, 0.8, 0.8))),
         ];
 
         this.fireMatrices = fireMatrices;
         this.fireModel = buildModel(gl, fireData, fireMatrices, this.attribLocations); // Salva il modello del focolare per l'animazione del fuoco
+
+        this.mouseMatrices = mouseMatrices;
 
         this.models = [
             buildModel(gl, groundData, groundMatrices, this.attribLocations),
@@ -113,6 +167,12 @@ class Forest {
             buildModel(gl, bushData, bushMatrices, this.attribLocations),
             buildModel(gl, mouseData, mouseMatrices, this.attribLocations),
         ];
+
+        // Spawn e renderizza i funghi
+        for (let i = 0; i < this.MAX_MUSHROOMS; i++) {
+            this._spawnMushroom();
+        }
+        this._rebuildMushroomModels();
     }
 
     setFireScale(scale) {

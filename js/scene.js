@@ -9,7 +9,7 @@ class Scene {
         if (!this.gl) {
             throw new Error('WebGL2 non supportato dal browser.');
         }
-        
+
         this.program = null;
         this.attribLocations = null;
         this.uniformLocations = null;
@@ -50,7 +50,7 @@ class Scene {
             viewPosition: gl.getUniformLocation(this.program, 'u_viewPosition'),
         };
 
-        this.forest = new Forest(gl, this.attribLocations, this.uniformLocations, this.camera);
+        this.forest = new Forest(gl, this.attribLocations, this.uniformLocations);
         await this.forest.init();
 
         this.resize();
