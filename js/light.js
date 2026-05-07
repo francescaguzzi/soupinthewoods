@@ -3,7 +3,7 @@ window.Light = (() => {
 	const moonLight = {
 		position: [0.3, 1.0, 0.5], 
 		color: [0.5, 0.55, 0.7], 
-		intensity: 0.3,
+		intensity: 0.4,
 	};
 
 	const fireLight = {

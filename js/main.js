@@ -11,15 +11,6 @@
     const scene = new Scene(canvas, camera);
     await scene.init();
 
-    // Ora che la foresta è caricata, aggiorna il target della camera al focusPoint dei modelli.
-    // const focusPoint = scene.forest.getFocusPoint();
-    // camera.target = focusPoint;
-    // // Ricalcola gli angoli sferici della camera attorno al nuovo target.
-    // const toTarget = m4.subtractVectors(camera.position, focusPoint);
-    // camera.distance = Math.sqrt(toTarget[0] * toTarget[0] + toTarget[1] * toTarget[1] + toTarget[2] * toTarget[2]);
-    // camera.theta = Math.atan2(toTarget[0], toTarget[2]);
-    // camera.phi = Math.acos(toTarget[1] / camera.distance);
-
     // Abilita profondità e blending per le parti trasparenti.
     const gl = scene.gl;
     gl.enable(gl.DEPTH_TEST);

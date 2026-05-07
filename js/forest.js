@@ -10,66 +10,52 @@ class Forest {
 
         // Array di modelli, con renderables raggruppati per materiale.
         this.models = [];
-
-        // Punto centrale della scena (usato dalla camera per orbiting).
         this.focusPoint = [0, 0, 0];
         
-        // dimensioni del fuoco (animazione)
         this.fireScale = 1.0;
-        // Matrici istanza originali del focolare (memorizzate per poter scalare al runtime).
         this.fireMatrices = null;
-        // Riferimento al buffer istanza del focolare per aggiornarlo al runtime.
-        this.fireInstanceBuffer = null;
     }
 
     async init() {
+
         const gl = this.gl;
 
-        // Carica il terreno (ground) dal file OBJ con il suo materiale principale.
         const groundData = await loadOBJModel(gl, 'assets/models/ground.obj', {
             textureBaseDir: 'assets/textures/ground/',
         });
-
         const fireData = await loadOBJModel(gl, 'assets/models/fireplace.obj', {
             textureBaseDir: 'assets/textures/fireplace/',
         });
-
-        // Carica un albero grande come template per le istanze multiple.
         const bigTreeData = await loadOBJModel(gl, 'assets/models/big-tree.obj', {
             textureBaseDir: 'assets/textures/tree/',
         });
-
         const smallTreeData = await loadOBJModel(gl, 'assets/models/small-tree.obj', {
             textureBaseDir: 'assets/textures/tree/',
         });
-
         const bushData = await loadOBJModel(gl, 'assets/models/bush.obj', {
             textureBaseDir: 'assets/textures/tree/',
         });
-
-        // Carica le rocce come elementi decorativi.
         const rockData = await loadOBJModel(gl, 'assets/models/rock.obj', {
             textureBaseDir: 'assets/textures/',
         });
 
+        const mouseData = await loadOBJModel(gl, 'assets/models/mouse.obj', {
+            textureBaseDir: 'assets/textures/',
+        });
 
-        // Calcola l'altezza del terreno dal suo bounding box.
-        const groundTopY = groundData.boundingBox.max[1];
-        // Imposta il focus point al centro del terreno, sulla sua superficie.
-        this.focusPoint = bboxCenter(groundData.boundingBox);
-        this.focusPoint[1] = groundTopY;
+        // for (let i = 1; i <= 3; i++) {
+        //     const mushroomData = await loadOBJModel(gl, `assets/models/mushrooms${i}.obj`, {
+        //         textureBaseDir: 'assets/textures/mushrooms/',
+        //     });
+        // }
 
-        // ========== CONFIGURAZIONE MANUALE MATRICI ==========
-        // Modifica questi valori direttamente per cambiare scale, posizione, rotazione.
-        // Formato: m4.multiply(traslazione, m4.multiply(rotazione, scala))
+        const groundTopY = 0 // groundData.boundingBox.max[1];
+        // this.focusPoint = bboxCenter(groundData.boundingBox);
+        // this.focusPoint[1] = groundTopY;
+
         // NOTE: m4.translation(x, y, z) trasla rispetto all'ORIGINE GLOBALE (0, 0, 0)
-        // Il focolare è posizionato a (0, groundTopY, 0), quindi gli alberi dovrebbero
-        // avere coordinate x, z relative a questo punto (ad esempio -5, 5 lo mette a sinistra-dietro)
-        
-        // Terreno: identità (nessuna trasformazione)
         const groundMatrices = [m4.identity()];
 
-        // Focolare: posizione (0, groundTopY, 0), scala 1.0 base (controllata da fireScale), rotazione 0
         const fireMatrices = [
             m4.multiply(
                 m4.translation(0, groundTopY, 0),
@@ -80,8 +66,6 @@ class Forest {
             )
         ];
 
-        // Alberi: 6 istanze sparse naturalmente attorno al focolare (0, 0)
-        // Posizioni relative al focolare per una distribuzione circolare
         const bigTreeMatrices = [
             m4.multiply(m4.translation(5, groundTopY, -6), m4.multiply(m4.yRotation(0), m4.scaling(1.0, 1.0, 1.0))),
             m4.multiply(m4.translation(7.8, groundTopY, -1), m4.multiply(m4.yRotation(30), m4.scaling(1.0, 1.0, 1.0))),
@@ -98,7 +82,6 @@ class Forest {
             m4.multiply(m4.translation(-3.5, groundTopY, -4), m4.multiply(m4.yRotation(0), m4.scaling(1.0, 1.0, 1.0))),
         ];
 
-        // Rocce: 4 istanze sparse intorno al focolare
         const rockMatrices = [
             m4.multiply(m4.translation(7.2, groundTopY, -6.7), m4.multiply(m4.yRotation(3.5), m4.scaling(1.0, 1.0, 1.0))),
             m4.multiply(m4.translation(5.4, groundTopY, 6.3), m4.multiply(m4.yRotation(30), m4.scaling(0.6, 0.6, 0.6))),
@@ -112,63 +95,28 @@ class Forest {
             m4.multiply(m4.translation(2.5, groundTopY, 7.3), m4.multiply(m4.yRotation(1), m4.scaling(0.9, 0.9, 0.9))),
         ];
 
-        // Memorizza le matrici del focolare per poterle scalare al runtime.
-        this.fireMatrices = fireMatrices;
-        
-        // Assegna i modelli alla foresta: cada uno è un array di renderables (uno per materiale).
-        this.models = [
-            this.buildModel(gl, groundData, groundMatrices),
-            this.buildModel(gl, fireData, fireMatrices),
-            this.buildModel(gl, bigTreeData, bigTreeMatrices),
-            this.buildModel(gl, smallTreeData, smallTreeMatrices),
-            this.buildModel(gl, rockData, rockMatrices),
-            this.buildModel(gl, bushData, bushMatrices),
+        const mouseMatrices = [
+            m4.multiply(m4.translation(2, groundTopY, 2), m4.multiply(m4.yRotation(0), m4.scaling(1.0, 1.0, 1.0))),
+            m4.multiply(m4.translation(-2, groundTopY, -2), m4.multiply(m4.yRotation(180), m4.scaling(1.0, 1.0, 1.0))),
+            m4.multiply(m4.translation(3, groundTopY, -3), m4.multiply(m4.yRotation(45), m4.scaling(0.8, 0.8, 0.8))),
         ];
-        
-        // Salva il buffer istanza del focolare per poterlo aggiornare al runtime.
-        if (this.models[1] && this.models[1].renderables.length > 0) {
-            this.fireInstanceBuffer = this.models[1].renderables[0].instanceBuffer;
-        }
-    }
 
-    buildModel(gl, modelData, instanceMatrices) {
-        // Costruisce un modello da renderare come istanze.
-        // Ogni materiale del modello riceve il suo VAO e renderables separati.
-        const renderables = [];
-        for (const renderable of modelData.renderables) {
-            // Crea il VAO per questo materiale con tutti gli attributi necessari all'instancing.
-            const vaoData = createInstancedModel(gl, renderable.geometry, this.attribLocations, instanceMatrices);
-            // Log debug: mostra se il materiale ha alpha clipping abilitato.
-            if (renderable.alphaClip) {
-                console.log(`Material "${renderable.materialName}" has alpha clipping enabled.`);
-            }
-            // Assembla l'oggetto renderable con geometria, texture, colori e metadati.
-            const renderableObj = {
-                ...vaoData,
-                texture: renderable.texture,
-                color: renderable.materialColor,
-                useTexture: renderable.useTexture,
-                materialName: renderable.materialName,
-                alphaClip: renderable.alphaClip,
-                alphaThreshold: renderable.alphaThreshold,
-            };
-            renderables.push(renderableObj);
-        }
+        this.fireMatrices = fireMatrices;
+        this.fireModel = buildModel(gl, fireData, fireMatrices, this.attribLocations); // Salva il modello del focolare per l'animazione del fuoco
 
-        return {
-            renderables,
-            boundingBox: modelData.boundingBox,
-        };
-    }
-
-    getFocusPoint() {
-        // Restituisce il punto centrale della scena per la camera.
-        return this.focusPoint.slice();
+        this.models = [
+            buildModel(gl, groundData, groundMatrices, this.attribLocations),
+            this.fireModel,
+            buildModel(gl, bigTreeData, bigTreeMatrices, this.attribLocations),
+            buildModel(gl, smallTreeData, smallTreeMatrices, this.attribLocations),
+            buildModel(gl, rockData, rockMatrices, this.attribLocations),
+            buildModel(gl, bushData, bushMatrices, this.attribLocations),
+            buildModel(gl, mouseData, mouseMatrices, this.attribLocations),
+        ];
     }
 
     setFireScale(scale) {
-        // Imposta la scala del focolare (usata per l'animazione del fuoco).
-        this.fireScale = Math.max(0.1, scale); // Limita la scala a un minimo di 0.1 per evitare valori negativi o zero.
+        this.fireScale = Math.max(0.1, scale);
     }
 
     render(viewMatrix, projectionMatrix) {
@@ -187,7 +135,7 @@ class Forest {
             // Itera tutti i renderables di questo modello (uno per materiale).
             for (const renderable of model.renderables) {
                 // Se è il materiale 'Fire' del focolare, aggiorna le matrici istanza scalate.
-                if (modelIdx === 1 && renderable.materialName === 'Fire' && this.fireMatrices && renderable.instanceBuffer) {
+                if (model === this.fireModel && renderable.materialName === 'Fire' && this.fireMatrices && renderable.instanceBuffer) {
                     // Calcola le matrici scalate del focolare.
                     const scaledMatrices = this.fireMatrices.map(m => 
                         m4.multiply(m, m4.scaling(this.fireScale, this.fireScale, this.fireScale))

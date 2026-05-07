@@ -9,15 +9,10 @@ class Scene {
         if (!this.gl) {
             throw new Error('WebGL2 non supportato dal browser.');
         }
-
+        
         this.program = null;
-
-        // Location degli attributi usati da VAO e instancing.
         this.attribLocations = null;
-
-        // Location delle uniform usate nel fragment shader.
         this.uniformLocations = null;
-
         this.forest = null;
     }
 
@@ -112,10 +107,5 @@ class Scene {
         }
 
         this.forest.render(viewMatrix, projectionMatrix);
-    }
-
-    getFocusPoint() {
-        // Punto utile per il reset/focus della camera.
-        return this.forest ? this.forest.getFocusPoint() : [0, 0, 0];
     }
 }

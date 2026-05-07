@@ -2,9 +2,6 @@
 // ASSET LOADING UTILITIES - Caricamento risorse da URL
 // ============================================================================
 
-// Carica una risorsa testuale (OBJ, MTL) da un URL.
-// Usa fetch per ottenere il contenuto e ritorna il testo.
-// Lancia errore se la risorsa non viene caricata.
 async function loadTextResource(url) {
 	const response = await fetch(url);
 	if (!response.ok) {
@@ -13,9 +10,6 @@ async function loadTextResource(url) {
 	return response.text();
 }
 
-// Risolve i percorsi degli asset relativi o assoluti in URL validi.
-// Gestisce percorsi relativi, assoluti, data URL, e percorsi già prefissati con 'assets/'.
-// Esempio: 'texture.png' + basePath 'assets/models/' -> 'assets/textures/texture.png'
 function resolveAssetUrl(basePath, assetPath) {
 	const path = String(assetPath || '').trim().replace(/\\/g, '/');
 	if (!path) return null;
@@ -28,8 +22,6 @@ function resolveAssetUrl(basePath, assetPath) {
 	return new URL(path, new URL(normalizedBase, window.location.href)).toString();
 }
 
-// Carica un'immagine da URL e ritorna l'oggetto Image.
-// Essenziale per il caricamento delle texture da disco.
 async function loadImageResource(url) {
 	return new Promise((resolve, reject) => {
 		const image = new Image();
@@ -46,8 +38,6 @@ async function loadImageResource(url) {
 // Cache globale delle texture già caricate per evitare duplicati.
 const textureCache = new Map();
 
-// Controlla se un numero è una potenza di 2 (necessario per WebGL mipmapping).
-// Numero è potenza di 2 se (n & (n-1)) == 0.
 function isPowerOfTwo(value) {
 	return (value & (value - 1)) === 0;
 }
@@ -158,37 +148,7 @@ function materialTexturePath(material) {
 // Determina se un materiale deve avere alpha clipping (per foglie trasparenti, etc).
 function shouldAlphaClip(material) {
 	const name = String(material?.name || '').toLowerCase();
-	return name.includes('leave') || name.includes('leaf') || '';
-}
-
-// ============================================================================
-// MATERIAL COLLECTION - Gestione della priorità dei materiali
-// ============================================================================
-
-// Raccoglie gli indici dei materiali di una mesh in ordine di priorità.
-// Se c'è un preferredName, lo mette per primo, poi gli altri materiali.
-// Se non ci sono materiali, ritorna [0] (materiale di default).
-function collectMaterialIndices(mesh, preferredName = null) {
-	const indices = [];
-	const preferredIndex = preferredName
-		? mesh.materials.findIndex((material) => material?.name === preferredName)
-		: -1;
-
-	// Metti il materiale preferito per primo se trovato
-	if (preferredIndex >= 0) {
-		indices.push(preferredIndex);
-	}
-
-	// Aggiungi tutti gli altri materiali
-	for (let i = 0; i < mesh.materials.length; i += 1) {
-		if (i === preferredIndex) continue;
-		const material = mesh.materials[i];
-		if (material) indices.push(i);
-	}
-
-	// Se nessun materiale trovato, usa il materiale 0 di default
-	if (indices.length === 0) indices.push(0);
-	return indices;
+	return name.includes('leave');
 }
 
 // ============================================================================
@@ -201,82 +161,41 @@ function collectMaterialIndices(mesh, preferredName = null) {
 function meshToGeometry(mesh, allowedMaterialIndices = null) {
 	const positions = [];
 	const uvs = [];
-	// Se specificati, usa solo questi indici materiale
+	const normals = [];
+
 	const materialSet = allowedMaterialIndices ? new Set(allowedMaterialIndices) : null;
 
-	// Itera tutte le facce della mesh
 	for (let i = 1; i <= mesh.nface; i += 1) {
 		const face = mesh.face[i];
 		if (!face || face.n_v_e < 3) continue;
-		// Salta la faccia se il suo materiale non è nella lista allowedMaterialIndices
+
 		if (materialSet && !materialSet.has(face.material ?? 0)) continue;
 
 		// Triangola il poligono in fan (v0-v1-v2, v0-v2-v3, v0-v3-v4, ...)
 		for (let t = 1; t < face.n_v_e - 1; t += 1) {
-			const indices = [0, t, t + 1];
-			// Per ogni vertex del triangolo
-			for (const idx of indices) {
-				// Estrai la posizione 3D dal vertice
-				const vertexIndex = face.vert[idx];
-				const vertex = mesh.vert[vertexIndex];
-				positions.push(vertex.x, vertex.y, vertex.z);
+			for (const idx of [0, t, t + 1]) {
+                const vertex = mesh.vert[face.vert[idx]];
+                positions.push(vertex.x, vertex.y, vertex.z);
 
-				// Estrai le coordinate UV dal vertice
-				const texIndex = face.textCoordsIndex[idx];
-				const texCoord = mesh.textCoords[texIndex];
-				uvs.push(texCoord ? texCoord.u : 0, texCoord ? texCoord.v : 0);
-			}
+                const texCoord = mesh.textCoords[face.textCoordsIndex[idx]];
+                uvs.push(texCoord ? texCoord.u : 0, texCoord ? texCoord.v : 0);
+
+                const normal = mesh.normal[face.normalVertexIndex[idx]]; // lettura normali per Phong shading
+                normals.push(
+                    normal ? normal.i : 0,
+                    normal ? normal.j : 1,
+                    normal ? normal.k : 0
+                );
+            }
 		}
 	}
 
 	return {
 		positions: new Float32Array(positions),
 		uvs: new Float32Array(uvs),
-		normals: computeNormalsFromPositions(new Float32Array(positions)),
+		normals: new Float32Array(normals),
 		vertexCount: positions.length / 3,
 	};
-}
-
-// Calcola normali lisce per triangoli ordinate per posizione
-function computeNormalsFromPositions(positions) {
-	const n = positions.length;
-	const normals = new Float32Array(n);
-	const tempNormals = new Float32Array(n);
-
-	// Accumula normali di faccia sui vertici
-	for (let i = 0; i < n; i += 9) {
-		// Vertici del triangolo
-		const v0 = [positions[i + 0], positions[i + 1], positions[i + 2]];
-		const v1 = [positions[i + 3], positions[i + 4], positions[i + 5]];
-		const v2 = [positions[i + 6], positions[i + 7], positions[i + 8]];
-
-		// Calcola edge vectors
-		const u = [v1[0] - v0[0], v1[1] - v0[1], v1[2] - v0[2]];
-		const v = [v2[0] - v0[0], v2[1] - v0[1], v2[2] - v0[2]];
-
-		// Cross product: face normal (usando Cross da glm_utils.js)
-		const faceNormal = Cross(u, v);
-		Normalize(faceNormal);
-
-		// Aggiungi normale di faccia ai 3 vertici
-		for (let j = 0; j < 3; j++) {
-			const idx = i + j * 3;
-			tempNormals[idx + 0] += faceNormal[0];
-			tempNormals[idx + 1] += faceNormal[1];
-			tempNormals[idx + 2] += faceNormal[2];
-		}
-	}
-
-	// Normalizza le normali per vertice (usando Normalize da glm_utils.js)
-	for (let i = 0; i < n; i += 3) {
-		const vertexNormal = [tempNormals[i + 0], tempNormals[i + 1], tempNormals[i + 2]];
-		Normalize(vertexNormal);
-		normals[i + 0] = vertexNormal[0];
-		normals[i + 1] = vertexNormal[1];
-		normals[i + 2] = vertexNormal[2];
-	}
-
-	return normals;
 }
 
 // ============================================================================
@@ -358,60 +277,34 @@ function createInstancedModel(gl, geometry, attribLocations, instanceMatrices) {
 	};
 }
 
-// ============================================================================
-// MATRIX BUILDERS - Creazione di matrici di trasformazione per gli oggetti
-// ============================================================================
+function buildModel(gl, modelData, instanceMatrices, attribLocations) {
+	// Costruisce un modello da renderare come istanze.
+	// Ogni materiale del modello riceve il suo VAO e renderables separati.
+	const renderables = [];
+	for (const renderable of modelData.renderables) {
+		// Crea il VAO per questo materiale con tutti gli attributi necessari all'instancing.
+		const vaoData = createInstancedModel(gl, renderable.geometry, attribLocations, instanceMatrices);
 
-// Crea una matrice per posizionare e scalare un oggetto allineato al terreno.
-// Parametri:
-// - bbox: bounding box dell'oggetto originale
-// - x, z: posizione X,Z sul terreno
-// - y: posizione Y (base del modello)
-// - targetHeight: altezza desiderata dell'oggetto finale
-// - rotationY: rotazione attorno all'asse Y (in radianti)
-function createGroundAlignedMatrix(bbox, x, y, z, targetHeight, rotationY = 0) {
-	// Calcolo centro e dimensioni della bbox originale
-	const center = bboxCenter(bbox);
-	const size = bboxSize(bbox);
-	const maxDimension = Math.max(size[0], size[1], size[2]) || 1;
-	// Scale per raggiungere l'altezza target partendo dall'altezza del modello
-	const scale = targetHeight / maxDimension;
+		if (renderable.alphaClip) {
+			console.log(`Material "${renderable.materialName}" has alpha clipping enabled.`);
+		}
+		// Assembla l'oggetto renderable con geometria, texture, colori e metadati.
+		const renderableObj = {
+			...vaoData,
+			texture: renderable.texture,
+			color: renderable.materialColor,
+			useTexture: renderable.useTexture,
+			materialName: renderable.materialName,
+			alphaClip: renderable.alphaClip,
+			alphaThreshold: renderable.alphaThreshold,
+		};
+		renderables.push(renderableObj);
+	}
 
-	// Composizione della matrice:
-	// 1. Trasla il modello alla posizione finale (x, y, z)
-	// 2. Ruota attorno a Y
-	// 3. Scala per la dimensione target
-	// 4. Trasla per centrare il modello (rimuove offset dal bounding box)
-	return m4.multiply(
-		m4.translation(x, y, z),
-		m4.multiply(
-			m4.yRotation(rotationY),
-			m4.multiply(
-				m4.scaling(scale, scale, scale),
-				m4.translation(-center[0], -bbox.min[1], -center[2])
-			)
-		)
-	);
-}
-
-// Crea una matrice per posizionare un oggetto centrato (non allineato al terreno).
-// Simile a createGroundAlignedMatrix ma centra completamente l'oggetto.
-function createCenteredMatrix(bbox, x, y, z, targetSize, rotationY = 0) {
-	const center = bboxCenter(bbox);
-	const size = bboxSize(bbox);
-	const maxDimension = Math.max(size[0], size[1], size[2]) || 1;
-	const scale = targetSize / maxDimension;
-
-	return m4.multiply(
-		m4.translation(x, y, z),
-		m4.multiply(
-			m4.yRotation(rotationY),
-			m4.multiply(
-				m4.scaling(scale, scale, scale),
-				m4.translation(-center[0], -center[1], -center[2])
-			)
-		)
-	);
+	return {
+		renderables,
+		boundingBox: modelData.boundingBox,
+	};
 }
 
 // ============================================================================
@@ -419,7 +312,6 @@ function createCenteredMatrix(bbox, x, y, z, targetSize, rotationY = 0) {
 // ============================================================================
 
 // Carica un modello OBJ e il suo MTL, poi prepara i dati per il rendering.
-// Ritorna {renderables: [], boundingBox: {...}, preferredMaterialName: string}.
 // Ogni renderable corrisponde a un materiale diverso.
 async function loadOBJModel(gl, objUrl, options = {}) {
 	// Carica il file OBJ testuale
@@ -439,8 +331,12 @@ async function loadOBJModel(gl, objUrl, options = {}) {
 		}
 	}
 
-	// Raccogli gli indici dei materiali (priorità: preferredMaterialName primo)
-	const materialIndices = collectMaterialIndices(mesh);
+	// Raccogli gli indici dei materiali 
+	const materialIndices = mesh.materials
+        .map((mat, i) => (mat ? i : null))
+        .filter(i => i !== null);
+    if (materialIndices.length === 0) materialIndices.push(0);
+
 	const renderables = [];
 
 	// Per ogni materiale, crea un renderable (VAO + texture + proprietà)
