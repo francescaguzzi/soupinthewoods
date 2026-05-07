@@ -113,7 +113,9 @@ function raySphereIntersect(rayOrigin, rayDir, sphere, worldMatrix) {
     ];
     const b = oc[0]*rayDir[0] + oc[1]*rayDir[1] + oc[2]*rayDir[2];
     const c = oc[0]*oc[0] + oc[1]*oc[1] + oc[2]*oc[2] - worldRadius * worldRadius;
-    return (b * b - c) >= 0; // true = colpito
+    const discriminant = b * b - c;
+    
+    return discriminant >= 0; // true = colpito
 }
 
 // ============================================================================

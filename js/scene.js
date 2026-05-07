@@ -13,6 +13,7 @@ class Scene {
         this.program = null;
         this.attribLocations = null;
         this.uniformLocations = null;
+        this.projectionMatrix = null;
         this.forest = null;
     }
 
@@ -74,6 +75,7 @@ class Scene {
         // Matrice di proiezione prospettica classica.
         const aspect = this.canvas.width / this.canvas.height;
         const projectionMatrix = m4.perspective(Math.PI / 3, aspect, 0.1, 200.0);
+        this.projectionMatrix = projectionMatrix; // Salva per uso esterno (raycasting)
 
         // View matrix ottenuta dalla camera istanziata.
         const viewMatrix = this.camera.getViewMatrix();

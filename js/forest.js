@@ -12,6 +12,7 @@ class Forest {
 
         this.fireScale = 1.0;
         this.fireMatrices = null;
+        this.fireData = null;
 
         this.mushroomData = [];
         this.spawnedMushrooms = [];
@@ -71,6 +72,35 @@ class Forest {
         }
     }
 
+    collectMushroom(mushroomId) {
+        const shroom = this.spawnedMushrooms.find(s => s.id === mushroomId);
+        if (!shroom || shroom.collected) return false;
+        
+        shroom.collected = true;
+
+        const active = this.spawnedMushrooms.filter(s => !s.collected).length;
+
+        if (active <= this.RESPAWN_THRESHOLD) {
+            const toSpawn = this.MAX_MUSHROOMS - active;
+            for (let i = 0; i < toSpawn; i++) this._spawnMushroom();
+                this.spawnedMushrooms = this.spawnedMushrooms.filter(s => !s.collected);
+        }
+
+        this._rebuildMushroomModels();
+        return shroom.meshIdx;
+    }
+
+    raycastMushrooms(rayOrigin, rayDir) {
+        for (const shroom of this.spawnedMushrooms) {
+            if (shroom.collected) continue;
+            
+            if (raySphereIntersect(rayOrigin, rayDir, shroom.sphere, shroom.matrix)) {
+                return shroom.id;
+            }
+        }
+        return null;
+    }
+
     async init() {
 
         const gl = this.gl;
@@ -78,8 +108,9 @@ class Forest {
         const groundData = await loadOBJModel(gl, 'assets/models/ground.obj', {
             textureBaseDir: 'assets/textures/ground/',
         });
-        const fireData = await loadOBJModel(gl, 'assets/models/fireplace.obj', {
+        this.fireData = await loadOBJModel(gl, 'assets/models/fireplace.obj', {
             textureBaseDir: 'assets/textures/fireplace/',
+            computeBoundingSphere: true,
         });
         const bigTreeData = await loadOBJModel(gl, 'assets/models/big-tree.obj', {
             textureBaseDir: 'assets/textures/tree/',
@@ -154,7 +185,7 @@ class Forest {
         ];
 
         this.fireMatrices = fireMatrices;
-        this.fireModel = buildModel(gl, fireData, fireMatrices, this.attribLocations); // Salva il modello del focolare per l'animazione del fuoco
+        this.fireModel = buildModel(gl, this.fireData, fireMatrices, this.attribLocations); // Salva il modello del focolare per l'animazione del fuoco
 
         this.mouseMatrices = mouseMatrices;
 
@@ -177,6 +208,12 @@ class Forest {
 
     setFireScale(scale) {
         this.fireScale = Math.max(0.1, scale);
+    }
+
+    isFireplaceClicked(rayOrigin, rayDir) {
+        const fireSphere = this.fireData.boundingSphere;
+        const fireMatrix = this.fireMatrices[0];
+        return raySphereIntersect(rayOrigin, rayDir, fireSphere, fireMatrix);
     }
 
     render(viewMatrix, projectionMatrix) {

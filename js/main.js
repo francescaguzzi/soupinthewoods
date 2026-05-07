@@ -5,11 +5,11 @@
         throw new Error('Canvas non trovato.');
     }
 
-    // Inizializza la scena usando il canvas.
-    // Nota: il target della camera verrà impostato dopo aver caricato i modelli.
     const camera = new Camera([-10, 15, 15], [0, 2, 0], [0, 1, 0]);
     const scene = new Scene(canvas, camera);
     await scene.init();
+
+    const game = new Game(scene, scene.forest, camera);
 
     // Abilita profondità e blending per le parti trasparenti.
     const gl = scene.gl;
@@ -23,46 +23,59 @@
     let lastX = 0;
     let lastY = 0;
     let lastTouchDistance = 0;
+    let dragStartX = 0;
+    let dragStartY = 0;
+    let touchStartX = 0;
+    let touchStartY = 0;
+    const dragThreshold = 5; // pixels
 
     // MOUSE EVENTS
     canvas.addEventListener('mousedown', (event) => {
-        // Usa il tasto sinistro del mouse per ruotare la camera.
         if (event.button !== 0) return;
         dragging = true;
         lastX = event.clientX;
         lastY = event.clientY;
-        canvas.style.cursor = 'grabbing';
+        dragStartX = event.clientX;
+        dragStartY = event.clientY;
     });
 
-    window.addEventListener('mouseup', () => {
-        // Quando rilasci il mouse, fermiamo la rotazione.
-        dragging = false;
-        canvas.style.cursor = 'grab';
+    window.addEventListener('mouseup', (event) => {
+        if (dragging) {
+            // Verifica se c'è stato un drag significativo
+            const dragDistance = Math.sqrt(
+                Math.pow(event.clientX - dragStartX, 2) + 
+                Math.pow(event.clientY - dragStartY, 2)
+            );
+            
+            dragging = false;
+            
+            // Se il drag è stato piccolo, trattalo come click
+            if (dragDistance < dragThreshold && event.button === 0) {
+                game.onCanvasClick(event.clientX, event.clientY, canvas);
+            }
+        }
     });
 
     window.addEventListener('mousemove', (event) => {
-        // Se non stiamo trascinando, ignoriamo il movimento.
         if (!dragging) return;
 
-        // Calcola lo spostamento del mouse rispetto al frame precedente.
         const deltaX = event.clientX - lastX;
         const deltaY = event.clientY - lastY;
         lastX = event.clientX;
         lastY = event.clientY;
 
-        // Ruota la camera secondo il drag del mouse (orbita attorno al target).
         camera.orbit(deltaX, deltaY);
     });
 
     // TOUCH EVENTS
     canvas.addEventListener('touchstart', (event) => {
-        if (event.touches.length === 1) {
-            // Un dito: drag per ruotare la camera
+        if (event.touches.length === 1) { // un dito in movimento: orbita
             dragging = true;
             lastX = event.touches[0].clientX;
             lastY = event.touches[0].clientY;
-        } else if (event.touches.length === 2) {
-            // Due dita: pinch per lo zoom
+            touchStartX = event.touches[0].clientX;
+            touchStartY = event.touches[0].clientY;
+        } else if (event.touches.length === 2) { // due dita in movimento: zoom
             dragging = false;
             const dx = event.touches[0].clientX - event.touches[1].clientX;
             const dy = event.touches[0].clientY - event.touches[1].clientY;
@@ -71,16 +84,14 @@
     }, { passive: true });
 
     canvas.addEventListener('touchmove', (event) => {
-        if (event.touches.length === 1 && dragging) {
-            // Un dito in movimento: ruota la camera
+        if (event.touches.length === 1 && dragging) { 
             const deltaX = event.touches[0].clientX - lastX;
             const deltaY = event.touches[0].clientY - lastY;
             lastX = event.touches[0].clientX;
             lastY = event.touches[0].clientY;
 
             camera.orbit(deltaX, deltaY);
-        } else if (event.touches.length === 2) {
-            // Due dita in movimento: pinch zoom
+        } else if (event.touches.length === 2) { 
             const dx = event.touches[0].clientX - event.touches[1].clientX;
             const dy = event.touches[0].clientY - event.touches[1].clientY;
             const currentDistance = Math.sqrt(dx * dx + dy * dy);
@@ -98,24 +109,34 @@
             lastTouchDistance = 0;
         }
         if (event.touches.length === 0) {
+            // Verifica se è stato un tap (click) o un drag
+            if (dragging) {
+                const dragDistance = Math.sqrt(
+                    Math.pow(event.changedTouches[0].clientX - touchStartX, 2) + 
+                    Math.pow(event.changedTouches[0].clientY - touchStartY, 2)
+                );
+                
+                // Se il movimento è stato piccolo, trattalo come click
+                if (dragDistance < dragThreshold) {
+                    game.onCanvasClick(event.changedTouches[0].clientX, event.changedTouches[0].clientY, canvas);
+                }
+            }
             dragging = false;
         }
     }, { passive: true });
 
     canvas.addEventListener('wheel', (event) => {
-        // Evita lo scroll della pagina e usa la rotella per lo zoom.
         event.preventDefault();
         camera.zoom(event.deltaY);
     }, { passive: false });
 
-    window.addEventListener('keydown', (event) => {
+    // window.addEventListener('keydown', (event) => {
 
-        const key = event.key;
+    //     const key = event.key;
         
-    });
+    // });
 
     window.addEventListener('resize', () => scene.resize());
-    canvas.style.cursor = 'grab';
 
     const fireAnim = {
         baseScale: 1.0,
