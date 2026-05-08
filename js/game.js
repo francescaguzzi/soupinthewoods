@@ -1,27 +1,28 @@
 class Game {
 
-    constructor(scene, forest, camera) {
+    constructor(scene, forest, camera, ui) {
         this.scene = scene;
         this.forest = forest;
         this.camera = camera;
-        this.inventory = [];       // funghi raccolti
+        this.ui = ui;
+        this.inventory = []; 
     }   
 
     static MUSHROOM_TYPES = {
         0: 'red',
-        1: 'brown',
-        2: 'purple',
+        1: 'purple',
+        2: 'brown',
     };
 
     static SOUP_PREFERENCES = {
         red:    -2,  
-        brown:  +2,  
-        purple: +1,  
+        purple:  +1,  
+        brown: +2,  
     };
 
     static COMBO_BONUSES = [
         { requires: ['red', 'brown', 'purple'], score: -3, label: 'disgusting' },
-        { requires: ['red', 'brown'],           score: +2, label: 'perfect' },
+        { requires: ['brown', 'brown'],           score: +2, label: 'perfect' },
     ];
 
     getRayFromScreen(screenX, screenY, canvas) {
@@ -56,6 +57,7 @@ class Game {
             const mushType = this.forest.collectMushroom(hitMushroomId);
             if (mushType !== false) {
                 this.inventory.push({ type: this.constructor.MUSHROOM_TYPES[mushType] });
+                this.ui.addMushroom(mushType);
                 console.log(`Fungo raccolto! ID: ${hitMushroomId}, Tipo: ${this.constructor.MUSHROOM_TYPES[mushType]}, Inventario: ${this.inventory.length}`);
             }
         }
@@ -70,6 +72,7 @@ class Game {
 
     emptyInventory() {
         this.inventory = [];
+        this.ui.clear();
     }
 
     cookSoup() {

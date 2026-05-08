@@ -9,7 +9,8 @@
     const scene = new Scene(canvas, camera);
     await scene.init();
 
-    const game = new Game(scene, scene.forest, camera);
+    const ui = new UI();
+    const game = new Game(scene, scene.forest, camera, ui);
 
     // Abilita profondità e blending per le parti trasparenti.
     const gl = scene.gl;
@@ -37,6 +38,11 @@
         lastY = event.clientY;
         dragStartX = event.clientX;
         dragStartY = event.clientY;
+    });
+
+    ui.container.addEventListener('clear-inventory', () => {
+        game.emptyInventory();
+        ui.clear();
     });
 
     window.addEventListener('mouseup', (event) => {
@@ -127,12 +133,6 @@
         event.preventDefault();
         camera.zoom(event.deltaY);
     }, { passive: false });
-
-    // window.addEventListener('keydown', (event) => {
-
-    //     const key = event.key;
-        
-    // });
 
     window.addEventListener('resize', () => scene.resize());
 
