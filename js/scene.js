@@ -45,14 +45,7 @@ class Scene {
         gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
         gl.bindVertexArray(null);
 
-        this.skyboxTexture = await loadCubemap(gl, [
-            'assets/skybox/px.png', // pos x - right
-            'assets/skybox/nx.png', // neg x - left
-            'assets/skybox/py.png', // pos y - top
-            'assets/skybox/ny.png', // neg y - bottom
-            'assets/skybox/pz.png', // pos z - front
-            'assets/skybox/nz.png', // neg z - back
-        ]);
+        this.skyboxTexture = await loadCubemap(gl,'assets/textures/skybox.png');
 
         /* ---------------------------------- */
 

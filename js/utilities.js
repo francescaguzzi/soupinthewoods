@@ -76,25 +76,29 @@ async function loadTexture(gl, url) {
 }
 
 // Cubemap loading per skybox
-async function loadCubemap(gl, urls) {
-
-	const texture = gl.createTexture();
+async function loadCubemap(gl, url) {
+    const texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_CUBE_MAP, texture);
 
     const faces = [
-        gl.TEXTURE_CUBE_MAP_POSITIVE_X, // destra
-        gl.TEXTURE_CUBE_MAP_NEGATIVE_X, // sinistra
-        gl.TEXTURE_CUBE_MAP_POSITIVE_Y, // su
-        gl.TEXTURE_CUBE_MAP_NEGATIVE_Y, // giù
-        gl.TEXTURE_CUBE_MAP_POSITIVE_Z, // davanti
-        gl.TEXTURE_CUBE_MAP_NEGATIVE_Z, // dietro
+        gl.TEXTURE_CUBE_MAP_POSITIVE_X,
+        gl.TEXTURE_CUBE_MAP_NEGATIVE_X,
+        gl.TEXTURE_CUBE_MAP_POSITIVE_Y,
+        gl.TEXTURE_CUBE_MAP_NEGATIVE_Y,
+        gl.TEXTURE_CUBE_MAP_POSITIVE_Z,
+        gl.TEXTURE_CUBE_MAP_NEGATIVE_Z,
     ];
 
-    await Promise.all(faces.map(async (face, i) => {
-        const image = await loadImageResource(urls[i]);
-        gl.bindTexture(gl.TEXTURE_CUBE_MAP, texture);
+	// await Promise.all(faces.map(async (face, i) => {
+    //     const image = await loadImageResource(urls[i]);
+    //     gl.bindTexture(gl.TEXTURE_CUBE_MAP, texture);
+    //     gl.texImage2D(face, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+    // }));
+
+    const image = await loadImageResource(url);
+    for (const face of faces) {
         gl.texImage2D(face, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
-    }));
+    }
 
     gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
     gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
