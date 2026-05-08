@@ -147,17 +147,17 @@ class Forest {
     }
 
     _uploadFireMatrices() {
-    if (!this.fireModel || !this.fireMatrices) return;
-    const flat = new Float32Array(this.fireMatrices.length * 16);
-    for (let i = 0; i < this.fireMatrices.length; i++) {
-        flat.set(m4.multiply(this.fireMatrices[i], m4.scaling(this.fireScale, this.fireScale, this.fireScale)), i * 16);
+        if (!this.fireModel || !this.fireMatrices) return;
+        const flat = new Float32Array(this.fireMatrices.length * 16);
+        for (let i = 0; i < this.fireMatrices.length; i++) {
+            flat.set(m4.multiply(this.fireMatrices[i], m4.scaling(this.fireScale, this.fireScale, this.fireScale)), i * 16);
+        }
+        for (const renderable of this.fireModel.renderables) {
+            if (renderable.materialName !== 'Fire' || !renderable.instanceBuffer) continue;
+            this.gl.bindBuffer(this.gl.ARRAY_BUFFER, renderable.instanceBuffer);
+            this.gl.bufferSubData(this.gl.ARRAY_BUFFER, 0, flat);
+        }
     }
-    for (const renderable of this.fireModel.renderables) {
-        if (renderable.materialName !== 'Fire' || !renderable.instanceBuffer) continue;
-        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, renderable.instanceBuffer);
-        this.gl.bufferSubData(this.gl.ARRAY_BUFFER, 0, flat);
-    }
-}
 
     isFireplaceClicked(rayOrigin, rayDir) {
         const fireSphere = this.fireData.boundingSphere;
@@ -208,21 +208,38 @@ class Forest {
 
         const t = this.mouseAnimationProgress * Math.PI * 2; // progresso da 0 a 2π per due bounce completi
 
-        if (this.mouseAnimation === 'bounce') {
+        if (this.mouseAnimation === 'bounce') { // approvazione
             return this.originalMouseMatrices.map(originalMatrix => {
-                const bounceAmount = Math.abs(Math.sin(t)) * 0.5; // Due bounce consecutivi usando abs(sin)
+                const bounceAmount = Math.abs(Math.sin(t)) * 0.5; // due bounce consecutivi usando abs(sin)
                 const bounceMatrix = m4.translation(0, bounceAmount, 0);
                 return m4.multiply(originalMatrix, bounceMatrix);
             });
-        } else if (this.mouseAnimation === 'nod') {
+        } else if (this.mouseAnimation === 'nod') { // disapprovazione lieve
             return this.originalMouseMatrices.map(originalMatrix => {
                 const nodAmount = Math.sin(t * 2) * 0.3; 
                 const nodMatrix = m4.yRotation(nodAmount);
                 return m4.multiply(originalMatrix, nodMatrix);
             });
+        } else if (this.mouseAnimation === 'shake') { // rifiuto
+            return this.originalMouseMatrices.map(originalMatrix => {
+                const damping = 1 - this.mouseAnimationProgress; // per smorzare verso la fine dell'animazione
+                const shakeAmount = Math.sin(t * 4) * 0.4 * damping; 
+                const shakeMatrix = m4.translation(0, 0, shakeAmount);
+                return m4.multiply(originalMatrix, shakeMatrix);
+            });
         }
         return this.originalMouseMatrices;
     }
+
+    // setSoupColor(r, g, b) {
+    //     if (!this.fireModel) return;
+
+    //     for (const renderable of this.fireModel.renderables) {
+    //         if (renderable.materialName === 'Soup') { 
+    //             renderable.color = [r, g, b];
+    //         }
+    //     }
+    // }
 
     /* ------------------------------------------ */
 

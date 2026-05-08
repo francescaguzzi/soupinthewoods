@@ -7,29 +7,40 @@ class Game {
         this.inventory = [];       // funghi raccolti
     }   
 
-    static mushroomTypes = ['red', 'purple', 'brown']; // 1 rosso, 2 viola, 3 marrone
+    static MUSHROOM_TYPES = {
+        0: 'red',
+        1: 'brown',
+        2: 'purple',
+    };
+
+    static SOUP_PREFERENCES = {
+        red:    -2,  
+        brown:  +2,  
+        purple: +1,  
+    };
+
+    static COMBO_BONUSES = [
+        { requires: ['red', 'brown', 'purple'], score: -3, label: 'disgusting' },
+        { requires: ['red', 'brown'],           score: +2, label: 'perfect' },
+    ];
 
     getRayFromScreen(screenX, screenY, canvas) {
-        // Normalizza le coordinate dello schermo a [-1, 1]
-        const rect = canvas.getBoundingClientRect();
+
+        const rect = canvas.getBoundingClientRect(); // Normalizza le coordinate dello schermo a [-1, 1]
         const localX = screenX - rect.left;
         const localY = screenY - rect.top;
         const ndcX = (localX / canvas.width) * 2 - 1;
         const ndcY = -(localY / canvas.height) * 2 + 1;
 
-        // FOV e aspect ratio
         const aspect = canvas.width / canvas.height;
         const vFOV = Math.PI / 3; // 60 gradi
         const tanHalfFOV = Math.tan(vFOV / 2);
 
-        // Calcola la direzione del ray direttamente dai vettori della camera
         const rayDir = [
             this.camera.forward[0] + this.camera.right[0] * ndcX * aspect * tanHalfFOV + this.camera.up[0] * ndcY * tanHalfFOV,
             this.camera.forward[1] + this.camera.right[1] * ndcX * aspect * tanHalfFOV + this.camera.up[1] * ndcY * tanHalfFOV,
             this.camera.forward[2] + this.camera.right[2] * ndcX * aspect * tanHalfFOV + this.camera.up[2] * ndcY * tanHalfFOV,
         ];
-
-        // Normalizza la direzione
         const rayDirNorm = m4.normalize(rayDir);
 
         return { origin: this.camera.position, direction: rayDirNorm };
@@ -43,35 +54,41 @@ class Game {
         if (hitMushroomId !== null) {
             
             const mushType = this.forest.collectMushroom(hitMushroomId);
-            if (mushType) {
-                this.inventory.push({ type: mushType });
-                console.log(`Fungo raccolto! ID: ${hitMushroomId}, Tipo: ${this.constructor.mushroomTypes[mushType]}, Inventario: ${this.inventory.length}`);
+            if (mushType !== false) {
+                this.inventory.push({ type: this.constructor.MUSHROOM_TYPES[mushType] });
+                console.log(`Fungo raccolto! ID: ${hitMushroomId}, Tipo: ${this.constructor.MUSHROOM_TYPES[mushType]}, Inventario: ${this.inventory.length}`);
             }
         }
-        if (this.forest.isFireplaceClicked(ray.origin, ray.direction) && this.inventory.length >= 4) {
-            this.cookSoup();
+        if (this.forest.isFireplaceClicked(ray.origin, ray.direction) && this.inventory.length >= 3) {
+
+            const reaction = this.cookSoup();
+            if (reaction)
+                this.forest.setMouseAnimation(reaction);
+            this.emptyInventory();
         }
     }
 
+    emptyInventory() {
+        this.inventory = [];
+    }
+
     cookSoup() {
-        // combinazioni possibili, ai topi può piacere o no:
-        // 1 rosso + 1 viola = zuppa rosa -> no
-        // 1 rosso + 1 marrone = zuppa arancione -> si
-        // 1 viola + 1 marrone = zuppa viola -> no
-        // 2 rossi = zuppa rossa -> no
-        // 2 viola = zuppa blu -> si
-        // 2 marroni = zuppa marrone  -> si
         console.log("Cucinando la zuppa...");
 
+        let score = this.inventory.reduce((acc, item) => {
+            const pref = this.constructor.SOUP_PREFERENCES[item.type] ?? 0;
+            return acc + pref;
+        }, 0);
 
-        const counts = { red: 0, purple: 0, brown: 0 };
-        for (const item of this.inventory) {
-            if (item.type === 0) counts.red++;
-            else if (item.type === 1) counts.purple++;
-            else if (item.type === 2) counts.brown++;
+        const types = new Set(this.inventory.map(item => item.type));
+        for (const combo of this.constructor.COMBO_BONUSES) {
+            if (combo.requires.every(t => types.has(t))) score += combo.score;
         }
 
-        this.forest.setMouseAnimation("bounce");
+        console.log(`Punteggio totale della zuppa: ${score}`);
+        if (score >= 3)  return 'bounce';   
+        if (score >= 0)  return 'nod';      
+        return 'shake';    
     }
 
 }

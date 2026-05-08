@@ -116,9 +116,9 @@ void main() {
     // vec3 H_moon = normalize(L_moon + V);
     // float specularIntensity_moon = pow(max(dot(N, H_moon), 0.0), 32.0);
     // vec3 specularLight_moon = u_moonColor * u_moonIntensity * specularIntensity_moon * 0.15 * lambertian_moon;
+    vec3 ambient = color.rgb * 0.05;
 
-    // Combina: ambient + diffuse fuoco + specular fuoco + diffuse luna + specular luna
-    vec3 finalRgb = diffuseLight_fire + specularLight_fire + diffuseLight_moon;
+    vec3 finalRgb = ambient + diffuseLight_fire + specularLight_fire + diffuseLight_moon;
     finalRgb = clamp(finalRgb, 0.0, 1.0);
     outColor = vec4(finalRgb, color.a);
 }

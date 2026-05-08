@@ -266,10 +266,6 @@ function buildModel(gl, modelData, instanceMatrices, attribLocations) {
 	for (const renderable of modelData.renderables) {
 		// Crea il VAO per questo materiale con tutti gli attributi necessari all'instancing.
 		const vaoData = createInstancedModel(gl, renderable.geometry, attribLocations, instanceMatrices);
-
-		if (renderable.alphaClip) {
-			console.log(`Material "${renderable.materialName}" has alpha clipping enabled.`);
-		}
 		// Assembla l'oggetto renderable con geometria, texture, colori e metadati.
 		const renderableObj = {
 			...vaoData,
