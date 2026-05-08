@@ -12,117 +12,148 @@
     </style>
     </style>
 
-    <!-- VERTEX SHADER -->
+    <!-- VERTEX SHADER GENERALE -->
     <script id="vertex-shader" type="x-shader/x-vertex">#version 300 es
-// Posizione del vertice nel modello.
-layout(location = 0) in vec3 a_position;
-// Coordinate UV del vertice.
-layout(location = 1) in vec2 a_uv;
-// Matrice per istanza: traduce, ruota e scala ogni copia del modello.
-layout(location = 2) in mat4 a_instanceMatrix;
-// Normale del vertice (layout location 6, dopo i 4 attributi della matrice istanza)
-layout(location = 6) in vec3 a_normal;
+        // Posizione del vertice nel modello.
+        layout(location = 0) in vec3 a_position;
+        // Coordinate UV del vertice.
+        layout(location = 1) in vec2 a_uv;
+        // Matrice per istanza: traduce, ruota e scala ogni copia del modello.
+        layout(location = 2) in mat4 a_instanceMatrix;
+        // Normale del vertice (layout location 6, dopo i 4 attributi della matrice istanza)
+        layout(location = 6) in vec3 a_normal;
 
-// View matrix fornita dalla camera.
-uniform mat4 u_view;
-// Projection matrix prospettica.
-uniform mat4 u_projection;
+        // View matrix fornita dalla camera.
+        uniform mat4 u_view;
+        // Projection matrix prospettica.
+        uniform mat4 u_projection;
 
-// UV passate al fragment shader.
-out vec2 v_uv;
-// Posizione mondo del vertice (passata al fragment shader per calcolo luce semplice)
-out vec3 v_worldPos;
-// Normale mondo del vertice (per calcoli speculari)
-out vec3 v_normal;
+        // UV passate al fragment shader.
+        out vec2 v_uv;
+        // Posizione mondo del vertice (passata al fragment shader per calcolo luce semplice)
+        out vec3 v_worldPos;
+        // Normale mondo del vertice (per calcoli speculari)
+        out vec3 v_normal;
 
-void main() {
-    // Conserva le UV originali.
-    v_uv = a_uv;
-    // Calcola posizione mondo usando la matrice istanza
-    vec4 worldPos = a_instanceMatrix * vec4(a_position, 1.0);
-    v_worldPos = worldPos.xyz;
-    // Trasforma la normale in spazio mondo usando mat3 della matrice istanza
-    v_normal = normalize(mat3(a_instanceMatrix) * a_normal);
-    // Trasforma il vertice da spazio mondo a clip space.
-    gl_Position = u_projection * u_view * worldPos;
-}
-</script>
+        void main() {
+            // Conserva le UV originali.
+            v_uv = a_uv;
+            // Calcola posizione mondo usando la matrice istanza
+            vec4 worldPos = a_instanceMatrix * vec4(a_position, 1.0);
+            v_worldPos = worldPos.xyz;
+            // Trasforma la normale in spazio mondo usando mat3 della matrice istanza
+            v_normal = normalize(mat3(a_instanceMatrix) * a_normal);
+            // Trasforma il vertice da spazio mondo a clip space.
+            gl_Position = u_projection * u_view * worldPos;
+        }
+    </script>
 
-    <!-- FRAGMENT SHADER -->
+    <!-- FRAGMENT SHADER GENERALE -->
     <script id="fragment-shader" type="x-shader/x-fragment">#version 300 es
-precision mediump float;
+        precision mediump float;
 
-in vec2 v_uv; // UV interpolate tra i vertici.
+        in vec2 v_uv; // UV interpolate tra i vertici.
 
-in vec3 v_worldPos; // Posizione mondo interpolata dal vertex shader.
-in vec3 v_normal; // Normale mondo interpolata dal vertex shader.
+        in vec3 v_worldPos; // Posizione mondo interpolata dal vertex shader.
+        in vec3 v_normal; // Normale mondo interpolata dal vertex shader.
 
-uniform vec4 u_color; // Colore base del materiale.
+        uniform vec4 u_color; // Colore base del materiale.
 
-uniform bool u_useTexture;
-uniform sampler2D u_texture;
+        uniform bool u_useTexture;
+        uniform sampler2D u_texture;
 
-uniform bool u_alphaClip;
-uniform float u_alphaThreshold;
+        uniform bool u_alphaClip;
+        uniform float u_alphaThreshold;
 
-uniform vec3 u_firePosition;
-uniform vec3 u_fireColor;
-uniform float u_fireIntensity;
+        uniform vec3 u_firePosition;
+        uniform vec3 u_fireColor;
+        uniform float u_fireIntensity;
 
-uniform vec3 u_moonDirection;
-uniform vec3 u_moonColor;
-uniform float u_moonIntensity;
+        uniform vec3 u_moonDirection;
+        uniform vec3 u_moonColor;
+        uniform float u_moonIntensity;
 
-uniform vec3 u_viewPosition; // Posizione della fotocamera (worldspace) per calcolo speculare
+        uniform vec3 u_viewPosition; // Posizione della fotocamera (worldspace) per calcolo speculare
 
-out vec4 outColor; // Colore finale scritto nel framebuffer.
+        out vec4 outColor; // Colore finale scritto nel framebuffer.
 
-void main() {
-    
-    vec4 color = u_color; // Parte dal colore del materiale.
-    if (u_useTexture) {
-        vec4 texColor = texture(u_texture, v_uv);
-        color *= texColor;
-    }
+        void main() {
+            
+            vec4 color = u_color; // Parte dal colore del materiale.
+            if (u_useTexture) {
+                vec4 texColor = texture(u_texture, v_uv);
+                color *= texColor;
+            }
 
-    if (u_alphaClip && color.a < u_alphaThreshold) {
-        discard;
-    }
+            if (u_alphaClip && color.a < u_alphaThreshold) {
+                discard;
+            }
 
-    // === NIGHTTIME LIGHTING with FIRE + MOON ===
-    vec3 N = normalize(v_normal);
-    vec3 V = normalize(u_viewPosition - v_worldPos);
+            // Vettori necessari per illuminazione Phong
+            vec3 N = normalize(v_normal);
+            vec3 V = normalize(u_viewPosition - v_worldPos);
 
-    // ========== FUOCO (Luce puntiforme) ==========
-    float dist_fire = distance(v_worldPos, u_firePosition);
-    float brightness_fire = u_fireIntensity / (1.0 + 0.08 * dist_fire * dist_fire);
-    
-    vec3 L_fire = normalize(u_firePosition - v_worldPos);
-    float lambertian_fire = max(dot(N, L_fire), 0.0);
-    float wrappedLambertian_fire = lambertian_fire * 0.7 + 0.3;
-    vec3 diffuseLight_fire = u_fireColor * brightness_fire * wrappedLambertian_fire * color.rgb;
+            // ========== FUOCO (Luce puntiforme) ==========
+            float dist_fire = distance(v_worldPos, u_firePosition);
+            float brightness_fire = u_fireIntensity / (1.0 + 0.08 * dist_fire * dist_fire);
+            
+            vec3 L_fire = normalize(u_firePosition - v_worldPos);
+            float lambertian_fire = max(dot(N, L_fire), 0.0);
+            float wrappedLambertian_fire = lambertian_fire * 0.7 + 0.3;
+            vec3 diffuseLight_fire = u_fireColor * brightness_fire * wrappedLambertian_fire * color.rgb;
 
-    // Specular dal fuoco (Phong)
-    vec3 H_fire = normalize(L_fire + V);
-    float specularIntensity_fire = pow(max(dot(N, H_fire), 0.0), 32.0);
-    vec3 specularLight_fire = u_fireColor * brightness_fire * specularIntensity_fire * 0.6 * lambertian_fire;
+            // Specular dal fuoco (Phong)
+            vec3 H_fire = normalize(L_fire + V);
+            float specularIntensity_fire = pow(max(dot(N, H_fire), 0.0), 32.0);
+            vec3 specularLight_fire = u_fireColor * brightness_fire * specularIntensity_fire * 0.6 * lambertian_fire;
 
-    // ========== LUNA (Luce direzionale debole) ==========
-    vec3 L_moon = normalize(-u_moonDirection); // Inverti direzione
-    float lambertian_moon = max(dot(N, L_moon), 0.0);
-    vec3 diffuseLight_moon = u_moonColor * u_moonIntensity * lambertian_moon * color.rgb;
+            // ========== LUNA (Luce direzionale debole) ==========
+            vec3 L_moon = normalize(-u_moonDirection); // Inverti direzione
+            float lambertian_moon = max(dot(N, L_moon), 0.0);
+            vec3 diffuseLight_moon = u_moonColor * u_moonIntensity * lambertian_moon * color.rgb;
 
-    // Specular dalla luna (molto debole)
-    // vec3 H_moon = normalize(L_moon + V);
-    // float specularIntensity_moon = pow(max(dot(N, H_moon), 0.0), 32.0);
-    // vec3 specularLight_moon = u_moonColor * u_moonIntensity * specularIntensity_moon * 0.15 * lambertian_moon;
-    vec3 ambient = color.rgb * 0.05;
+            // specular luna
+            vec3 H_moon = normalize(L_moon + V);
+            float specularIntensity_moon = pow(max(dot(N, H_moon), 0.0), 32.0);
+            vec3 specularLight_moon = u_moonColor * u_moonIntensity * specularIntensity_moon * 0.15 * lambertian_moon;
 
-    vec3 finalRgb = ambient + diffuseLight_fire + specularLight_fire + diffuseLight_moon;
-    finalRgb = clamp(finalRgb, 0.0, 1.0);
-    outColor = vec4(finalRgb, color.a);
-}
-</script>
+            vec3 ambient = color.rgb * 0.1;
+
+            vec3 finalRgb = ambient + diffuseLight_fire + specularLight_fire + diffuseLight_moon + specularLight_moon;
+            finalRgb = clamp(finalRgb, 0.0, 1.0);
+            outColor = vec4(finalRgb, color.a);
+        }
+    </script>
+
+    <!-- SKYBOX VERTEX SHADER -->
+    <script id="skybox-vertex" type="x-shader/x-vertex">#version 300 es
+        in vec4 a_position;
+        out vec4 v_position;
+        void main() {
+            v_position = a_position;
+            gl_Position = vec4(a_position.xy, 1, 1);
+        }
+    </script>
+
+    <!-- SKYBOX FRAGMENT SHADER -->
+    <script id="skybox-fragment" type="x-shader/x-fragment">#version 300 es
+        precision mediump float;
+        uniform samplerCube u_skybox;
+        uniform mat4 u_viewDirectionProjectionInverse;
+        in vec4 v_position;
+        out vec4 outColor;
+
+        void main() {
+            vec4 t = u_viewDirectionProjectionInverse * v_position;
+            vec3 dir = normalize(t.xyz / t.w);
+            
+            // per sfumare verso il nero all'orizzonte
+            float horizon = smoothstep(-0.1, 0.3, dir.y);
+            vec4 skyColor = texture(u_skybox, dir);
+            outColor = vec4(skyColor.rgb * horizon, 1.0);
+        }
+    </script>
+
 </head>
 <body>
     <canvas id="canvas"></canvas>

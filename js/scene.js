@@ -20,6 +20,42 @@ class Scene {
     async init() {
 
         const gl = this.gl;
+
+        /* ---------------------------------- */
+
+        this.skyboxProgram = webglUtils.createProgramFromScripts(gl, ['skybox-vertex', 'skybox-fragment']);
+        this.skyboxUniformLocations = {
+            skybox: gl.getUniformLocation(this.skyboxProgram, 'u_skybox'),
+            viewDirectionProjectionInverse: gl.getUniformLocation(this.skyboxProgram, 'u_viewDirectionProjectionInverse'),
+        };
+
+        const quadVertices = new Float32Array([
+            -1, -1,
+            1, -1,
+            -1,  1,
+            1,  1,
+        ]);
+        this.skyboxVAO = gl.createVertexArray();
+        gl.bindVertexArray(this.skyboxVAO);
+        const quadBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, quadVertices, gl.STATIC_DRAW);
+        const posLoc = gl.getAttribLocation(this.skyboxProgram, 'a_position');
+        gl.enableVertexAttribArray(posLoc);
+        gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+        gl.bindVertexArray(null);
+
+        this.skyboxTexture = await loadCubemap(gl, [
+            'assets/skybox/px.png', // pos x - right
+            'assets/skybox/nx.png', // neg x - left
+            'assets/skybox/py.png', // pos y - top
+            'assets/skybox/ny.png', // neg y - bottom
+            'assets/skybox/pz.png', // pos z - front
+            'assets/skybox/nz.png', // neg z - back
+        ]);
+
+        /* ---------------------------------- */
+
         this.program = webglUtils.createProgramFromScripts(gl, ['vertex-shader', 'fragment-shader']);
 
         // Legge le location degli attributi una sola volta.
@@ -66,7 +102,6 @@ class Scene {
     render() {
         const gl = this.gl;
 
-        // Aggiorna la dimensione del canvas e pulisce il frame buffer.
         this.resize();
         // gl.clearColor(12/255, 8/255, 5/255, 1); 
         gl.clearColor(0, 0, 0, 1); // Colore di sfondo più scuro per evidenziare il fuoco
@@ -80,6 +115,32 @@ class Scene {
         // View matrix ottenuta dalla camera istanziata.
         const viewMatrix = this.camera.getViewMatrix();
 
+        /* ---------------------------------- */
+
+        const viewDirectionMatrix = [...viewMatrix];
+        viewDirectionMatrix[12] = 0;
+        viewDirectionMatrix[13] = 0;
+        viewDirectionMatrix[14] = 0;
+
+        const viewDirectionProjectionInverse = m4.inverse(
+            m4.multiply(projectionMatrix, viewDirectionMatrix)
+        );
+
+        // Skybox prima di tutto — depthFunc LEQUAL come fa il tuo prof
+        gl.depthFunc(gl.LEQUAL);
+        gl.useProgram(this.skyboxProgram);
+        gl.bindVertexArray(this.skyboxVAO);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_CUBE_MAP, this.skyboxTexture);
+        gl.uniform1i(this.skyboxUniformLocations.skybox, 0);
+        gl.uniformMatrix4fv(this.skyboxUniformLocations.viewDirectionProjectionInverse, false, viewDirectionProjectionInverse);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        gl.bindVertexArray(null);
+
+        /* ---------------------------------- */
+
+        // Ripristina depth test standard e renderizza la scena
+        gl.depthFunc(gl.LESS);
         // Usa il programma e lascia alla foresta il rendering delle istanze.
         gl.useProgram(this.program);
 
