@@ -288,7 +288,7 @@ class Forest {
             m4.multiply(
                 m4.translation(0, this.groundTopY, 0),
                 m4.multiply(
-                    m4.yRotation(90),
+                    m4.yRotation(0),
                     m4.scaling(1.0, 1.0, 1.0)
                 )
             )
