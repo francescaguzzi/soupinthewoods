@@ -1,59 +1,3 @@
-/* #ui-container {
-    position: fixed;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 10;
-}
-
-#inventory {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-    background: rgba(0, 0, 0, 0.6);
-    border-radius: 12px;
-    padding: 12px 16px;
-}
-
-#inventory-slots {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    justify-content: center;
-    min-height: 60px; // evita collasso quando è vuoto 
-    min-width: 200px;
-}
-
-.mushroom-slot {
-    width: 48px;
-    height: 48px;
-    object-fit: contain;
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.1);
-    padding: 4px;
-}
-
-#btn-clear {
-    background: #8B3A3A;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    padding: 6px 14px;
-    cursor: pointer;
-    font-size: 14px;
-}
-
-#btn-clear:hover:not(:disabled) {
-    background: #a84444;
-}
-
-#btn-clear:disabled {
-    opacity: 0.4;
-    cursor: default;
-} */
-
-/* Font pixelato — importa da Google Fonts in <head> */
 @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 
 #body { margin: 0; overflow: hidden; touch-action: none; }
@@ -74,26 +18,17 @@
     align-items: center;
     gap: 12px;
     background: #0a0a0a;
-    border: 3px solid #3d3d3d;
-    outline: 3px solid #3b473e;
-    outline-offset: 3px;
+    border: 3px solid #bb8000;
     padding: 14px 18px;
     image-rendering: pixelated;
-    background-image: repeating-linear-gradient(
-        0deg,
-        transparent,
-        transparent 2px,
-        rgba(0, 0, 0, 0.3) 2px,
-        rgba(0, 0, 0, 0.3) 4px
-    );
 }
 
 #inventory::before {
     content: '[ INVENTARIO ]';
-    color: #6e6e6e;
-    font-size: 8px;
+    color: #aaaaaa;
+    font-size: 9px;
     letter-spacing: 2px;
-    text-shadow: 0 0 8px #494949;
+    text-shadow: 0 0 8px #5f5e5e;
 }
 
 #inventory-slots {
@@ -102,7 +37,7 @@
     gap: 6px;
     justify-content: center;
     min-height: 64px;
-    min-width: 220px;
+    min-width: 64px;
 }
 
 .mushroom-slot {
@@ -123,17 +58,6 @@
     box-shadow: 
         inset 2px 2px 0px #555,
         inset -2px -2px 0px #fff;
-}
-
-/* Animazione di aggiunta fungo */
-@keyframes pixel-pop {
-    0%   { transform: scale(0);   opacity: 0; }
-    60%  { transform: scale(1.3); opacity: 1; }
-    100% { transform: scale(1);   opacity: 1; }
-}
-
-.mushroom-slot {
-    animation: pixel-pop 0.2s steps(4, end);
 }
 
 #btn-clear {
@@ -175,7 +99,7 @@
     box-shadow: none;
 }
 
-#soup-result {
+/* #soup-result {
     position: fixed;
     top: 30%;
     left: 50%;
@@ -194,4 +118,4 @@
 @keyframes blink {
     0%, 100% { opacity: 1; }
     50%       { opacity: 0; }
-}
+} */

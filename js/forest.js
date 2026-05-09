@@ -271,6 +271,10 @@ class Forest {
             textureBaseDir: 'assets/textures/',
         });
 
+        const polaroidData = await loadOBJModel(gl, 'assets/models/polaroid.obj', {
+            textureBaseDir: 'assets/textures/',
+        });
+
         for (let i = 1; i <= 3; i++) {
             this.mushroomData[i - 1] = await loadOBJModel(gl, `assets/models/mushrooms${i}.obj`, {
                 textureBaseDir: 'assets/textures/mushrooms/',
@@ -325,21 +329,23 @@ class Forest {
             m4.multiply(m4.translation(2, this.groundTopY, -2), m4.multiply(m4.yRotation(45), m4.scaling(0.8, 0.8, 0.8))),
         ];
 
-        this.fireMatrices = fireMatrices;
-        this.fireModel = buildModel(gl, this.fireData, fireMatrices, this.attribLocations); // Salva il modello del focolare per l'animazione del fuoco
+        const polaroidMatrices = [
+            m4.multiply(m4.translation(5, this.groundTopY, 0), m4.multiply(m4.yRotation(0), m4.scaling(1.0, 1.0, 1.0))),
+        ];
 
+        this.fireMatrices = fireMatrices;
         this.mouseMatrices = mouseMatrices;
-        this.originalMouseMatrices = mouseMatrices.map(m => [...m]); // Copia profonda per le matrici originali
-        this.mouseModel = buildModel(gl, mouseData, mouseMatrices, this.attribLocations); // Salva il modello del topo per l'animazione
+        this.originalMouseMatrices = mouseMatrices.map(m => [...m]); // deep copy per le matrici originali
 
         this.models = [
             buildModel(gl, groundData, groundMatrices, this.attribLocations),
-            this.fireModel,
+            this.fireModel = buildModel(gl, this.fireData, fireMatrices, this.attribLocations), 
             buildModel(gl, bigTreeData, bigTreeMatrices, this.attribLocations),
             buildModel(gl, smallTreeData, smallTreeMatrices, this.attribLocations),
             buildModel(gl, rockData, rockMatrices, this.attribLocations),
             buildModel(gl, bushData, bushMatrices, this.attribLocations),
-            this.mouseModel,
+            buildModel(gl, polaroidData, polaroidMatrices, this.attribLocations),
+            this.mouseModel = buildModel(gl, mouseData, mouseMatrices, this.attribLocations),
         ];
 
         for (let i = 0; i < this.MAX_MUSHROOMS; i++) {
@@ -378,7 +384,7 @@ class Forest {
                 gl.uniform1i(uniformLocations.textureSampler, 0); // Informa il fragment shader su quale sampler leggere la texture.
                 gl.drawArraysInstanced(gl.TRIANGLES, 0, renderable.vertexCount, renderable.instanceCount); // Istanced rendering
             }
+            gl.bindVertexArray(null); // Pulisci il VAO dopo ogni modello
         }
-        gl.bindVertexArray(null);
     }
 }
