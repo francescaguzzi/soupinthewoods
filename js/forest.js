@@ -330,7 +330,16 @@ class Forest {
         ];
 
         const polaroidMatrices = [
-            m4.multiply(m4.translation(5, this.groundTopY, 0), m4.multiply(m4.yRotation(0), m4.scaling(1.0, 1.0, 1.0))),
+            m4.multiply(
+                m4.translation(-3.25, 1.4, -3.85),  // X, Z, -Y di Blender
+                m4.multiply(
+                    m4.xRotation(degToRad(20)),
+                    m4.multiply(
+                        m4.zRotation(degToRad(-80)), // Y di Blender -> Z di WebGL
+                        m4.yRotation(degToRad(150))   // Z di Blender -> Y di WebGL
+                    )
+                )
+            )
         ];
 
         this.fireMatrices = fireMatrices;

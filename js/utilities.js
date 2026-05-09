@@ -42,6 +42,10 @@ function isPowerOfTwo(value) {
 	return (value & (value - 1)) === 0;
 }
 
+function degToRad(degrees) {
+	return degrees * Math.PI / 180;
+}
+
 // Carica una texture WebGL2 da URL.
 // Crea una texture placeholder bianca e la carica asincronamente.
 // Se la dimensione è potenza di 2, usa mipmapping; altrimenti usa CLAMP_TO_EDGE.
