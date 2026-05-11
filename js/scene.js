@@ -23,6 +23,12 @@ class Scene {
         }
     }
 
+    toggleSpecularMapping() {
+        if (this.forest) {
+            return this.forest.toggleSpecularMapping();
+        }
+    }
+
     async init() {
 
         const gl = this.gl;
@@ -78,6 +84,10 @@ class Scene {
             // normal mapping
             useNormalMap: gl.getUniformLocation(this.program, 'u_useNormalMap'),
             normalMapSampler: gl.getUniformLocation(this.program, 'u_normalMap'),
+            // specular mapping
+            useSpecularMap: gl.getUniformLocation(this.program, 'u_useSpecularMap'),
+            specularMapSampler: gl.getUniformLocation(this.program, 'u_specularMap'),
+            specularColor: gl.getUniformLocation(this.program, 'u_specularColor'),
 
             // Fire light uniforms
             firePosition: gl.getUniformLocation(this.program, 'u_firePosition'),

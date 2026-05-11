@@ -76,6 +76,9 @@
         uniform vec3 u_viewPosition; // Posizione della fotocamera (worldspace) per calcolo speculare
         uniform bool u_useNormalMap;
         uniform sampler2D u_normalMap;
+        uniform bool u_useSpecularMap;
+        uniform sampler2D u_specularMap;
+        uniform vec3 u_specularColor; // Colore speculare del materiale (Ks)
 
         out vec4 outColor; // Colore finale scritto nel framebuffer.
 
@@ -118,10 +121,13 @@
             float wrappedLambertian_fire = lambertian_fire * 0.7 + 0.3;
             vec3 diffuseLight_fire = u_fireColor * brightness_fire * wrappedLambertian_fire * color.rgb;
 
+            // Sampla la specular map (se abilitata)
+            vec3 specularMap = u_useSpecularMap ? texture(u_specularMap, v_uv).rgb : vec3(1.0);
+
             // Specular dal fuoco (Phong)
             vec3 H_fire = normalize(L_fire + V);
             float specularIntensity_fire = pow(max(dot(N, H_fire), 0.0), 32.0);
-            vec3 specularLight_fire = u_fireColor * brightness_fire * specularIntensity_fire * 0.6 * lambertian_fire;
+            vec3 specularLight_fire = u_specularColor * u_fireColor * brightness_fire * specularIntensity_fire * 0.4 * lambertian_fire * specularMap;
 
             // ========== LUNA (Luce direzionale debole) ==========
             vec3 L_moon = normalize(-u_moonDirection); // Inverti direzione
@@ -131,11 +137,11 @@
             // specular luna
             vec3 H_moon = normalize(L_moon + V);
             float specularIntensity_moon = pow(max(dot(N, H_moon), 0.0), 32.0);
-            vec3 specularLight_moon = u_moonColor * u_moonIntensity * specularIntensity_moon * 0.15 * lambertian_moon;
+            vec3 specularLight_moon = u_specularColor * u_moonColor * u_moonIntensity * specularIntensity_moon * 0.5 * lambertian_moon * specularMap;
 
             vec3 ambient = color.rgb * 0.1;
 
-            vec3 finalRgb = ambient + diffuseLight_fire + specularLight_fire + diffuseLight_moon + specularLight_moon;
+            vec3 finalRgb = diffuseLight_fire + specularLight_fire + diffuseLight_moon + specularLight_moon;
             finalRgb = clamp(finalRgb, 0.0, 1.0);
             outColor = vec4(finalRgb, color.a);
         }

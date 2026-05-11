@@ -165,8 +165,13 @@ function materialColor(material) {
 	return [source[0] ?? 1, source[1] ?? 1, source[2] ?? 1];
 }
 
-// Estrae il percorso della texture diffuse (map_Kd), displacement (map_d), o emissive (map_Ke) dal materiale.
-// Ritorna il percorso come stringa o null se non presente.
+function materialSpecularColor(material) {
+	const ks = material?.parameter?.get('Ks');
+	const source = ks || [0.5, 0.5, 0.5]; // Default grigio medio se non specificato
+	return [source[0] ?? 0.5, source[1] ?? 0.5, source[2] ?? 0.5];
+}
+
+// Estrae il percorso della texture
 function materialTexturePath(material) {
 	return material?.parameter?.get('map_Kd') || material?.parameter?.get('map_d') || material?.parameter?.get('map_Ke') || null;
 }
@@ -174,6 +179,10 @@ function materialTexturePath(material) {
 function materialNormalPath(material) {
     return material?.parameter?.get('map_Bump') || 
            material?.parameter?.get('map_Kn') || null;
+}
+
+function materialSpecularPath(material) {
+    return material?.parameter?.get('map_Ks') || null;
 }
 
 async function extractNormalMaps(mtlText, mesh) {
@@ -366,12 +375,15 @@ function buildModel(gl, modelData, instanceMatrices, attribLocations) {
 			...vaoData,
 			texture: renderable.texture,
 			color: renderable.materialColor,
+			specularColor: renderable.materialSpecularColor,
 			useTexture: renderable.useTexture,
 			materialName: renderable.materialName,
 			alphaClip: renderable.alphaClip,
 			alphaThreshold: renderable.alphaThreshold,
 			normalTexture: renderable.normalTexture,
 			useNormalMap: renderable.useNormalMap,
+			specularTexture: renderable.specularTexture,
+			useSpecularMap: renderable.useSpecularMap,
 		};
 		renderables.push(renderableObj);
 	}
@@ -432,9 +444,19 @@ async function loadOBJModel(gl, objUrl, options = {}) {
 		if (normalUrl) {
 			try {
 				normalTexture = await loadTexture(gl, normalUrl);
-				console.log('✓ Normal map caricato:', material?.name, '-', normalPath);
 			} catch (error) {
-				console.warn('✗ Errore caricamento normal map:', material?.name, '-', normalPath, error);
+				console.warn('Errore caricamento normal map:', material?.name, '-', normalPath, error);
+			}
+		}
+
+		const specularPath = materialSpecularPath(material);
+		const specularUrl = specularPath ? resolveAssetUrl(options.textureBaseDir || objUrl, specularPath) : null;
+		let specularTexture = null;
+		if (specularUrl) {
+			try {
+				specularTexture = await loadTexture(gl, specularUrl);
+			} catch (error) {
+				console.warn('Errore caricamento specular map:', material?.name, '-', specularPath, error);
 			}
 		}
 
@@ -442,10 +464,13 @@ async function loadOBJModel(gl, objUrl, options = {}) {
 			materialName: material?.name || `material_${materialIndex}`,
 			geometry,
 			materialColor: materialColor(material),
+			materialSpecularColor: materialSpecularColor(material),
 			texture,
 			useTexture: Boolean(texture),
 			normalTexture,
 			useNormalMap: Boolean(normalTexture),
+			specularTexture,
+			useSpecularMap: Boolean(specularTexture),
 			alphaClip: shouldAlphaClip(material),
 			alphaThreshold: 0.9,
 		});

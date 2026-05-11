@@ -28,12 +28,18 @@ class Forest {
         this.originalMouseMatrices = null; 
         this.mouseModel = null;
 
-        this.normalMappingEnabled = true; 
+        this.normalMappingEnabled = true;
+        this.specularMappingEnabled = true; 
     }
 
     toggleNormalMapping() {
         this.normalMappingEnabled = !this.normalMappingEnabled;
         return this.normalMappingEnabled;
+    }
+
+    toggleSpecularMapping() {
+        this.specularMappingEnabled = !this.specularMappingEnabled;
+        return this.specularMappingEnabled;
     }
 
     /* ------------------------------------------ */
@@ -387,8 +393,14 @@ class Forest {
 
                 gl.bindVertexArray(renderable.vao);  // Associa il VAO di questo materiale.
                 gl.uniform4fv(uniformLocations.color, [...renderable.color, 1.0]); // Imposta il colore base del materiale (RGB + alpha=1).
+                gl.uniform3fv(uniformLocations.specularColor, renderable.specularColor || [0.5, 0.5, 0.5]); // Imposta il colore speculare del materiale.
                 gl.uniform1i(uniformLocations.useTexture, renderable.useTexture ? 1 : 0); // Abilita/disabilita il campionamento delle texture.
+                
                 gl.uniform1i(uniformLocations.useNormalMap, (renderable.useNormalMap && this.normalMappingEnabled) ? 1 : 0); // Abilita/disabilita il normal mapping (controlla toggle dell'utente).
+                
+                const useSpecValue = (renderable.useSpecularMap && this.specularMappingEnabled) ? 1 : 0;
+                gl.uniform1i(uniformLocations.useSpecularMap, useSpecValue); // Abilita/disabilita il specular mapping (controlla toggle dell'utente).
+
                 gl.uniform1i(uniformLocations.alphaClip, renderable.alphaClip ? 1 : 0); // Abilita/disabilita alpha clipping (per le foglie trasparenti).
                 gl.uniform1f(uniformLocations.alphaThreshold, renderable.alphaThreshold ?? 0.5); 
 
@@ -400,6 +412,15 @@ class Forest {
                         gl.activeTexture(gl.TEXTURE2);
                         gl.bindTexture(gl.TEXTURE_2D, renderable.normalTexture);
                         gl.uniform1i(uniformLocations.normalMapSampler, 2);
+                    }
+
+                    if (renderable.specularTexture && renderable.useSpecularMap && this.specularMappingEnabled) {
+                        gl.activeTexture(gl.TEXTURE1);
+                        gl.bindTexture(gl.TEXTURE_2D, renderable.specularTexture);
+                        gl.uniform1i(uniformLocations.specularMapSampler, 1);
+                    } else {
+                        gl.activeTexture(gl.TEXTURE1);
+                        gl.bindTexture(gl.TEXTURE_2D, null);
                     }
 
                 } else {
