@@ -17,6 +17,9 @@ class UI {
         this.container = document.createElement('div');
         this.container.id = 'ui-container';
         this.container.innerHTML = `
+            <div id="controls">
+                <button id="btn-normal-mapping" title="Attiva/disattiva Normal Mapping (N)">Normal Mapping</button>
+            </div>
             <div id="inventory">
                 <div id="inventory-slots"></div>
                 <button id="btn-clear">Svuota inventario</button>
@@ -26,11 +29,16 @@ class UI {
 
         this.slotsEl = document.getElementById('inventory-slots');
         this.clearBtn = document.getElementById('btn-clear');
+        this.normalMappingBtn = document.getElementById('btn-normal-mapping');
     }
 
     _bindEvents() {
         this.clearBtn.addEventListener('click', () => {
             this.container.dispatchEvent(new CustomEvent('clear-inventory'));
+        });
+        
+        this.normalMappingBtn.addEventListener('click', () => {
+            this.container.dispatchEvent(new CustomEvent('toggle-normal-mapping'));
         });
     }
 

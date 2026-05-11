@@ -17,6 +17,12 @@ class Scene {
         this.forest = null;
     }
 
+    toggleNormalMapping() {
+        if (this.forest) {
+            return this.forest.toggleNormalMapping();
+        }
+    }
+
     async init() {
 
         const gl = this.gl;
@@ -57,6 +63,7 @@ class Scene {
             uv: gl.getAttribLocation(this.program, 'a_uv'),
             instanceMatrix: gl.getAttribLocation(this.program, 'a_instanceMatrix'),
             normal: gl.getAttribLocation(this.program, 'a_normal'),
+            tangent: gl.getAttribLocation(this.program, 'a_tangent'), 
         };
 
         // Legge le uniform una sola volta per evitare lookup ogni frame.
@@ -68,6 +75,10 @@ class Scene {
             textureSampler: gl.getUniformLocation(this.program, 'u_texture'),
             alphaClip: gl.getUniformLocation(this.program, 'u_alphaClip'),
             alphaThreshold: gl.getUniformLocation(this.program, 'u_alphaThreshold'),
+            // normal mapping
+            useNormalMap: gl.getUniformLocation(this.program, 'u_useNormalMap'),
+            normalMapSampler: gl.getUniformLocation(this.program, 'u_normalMap'),
+
             // Fire light uniforms
             firePosition: gl.getUniformLocation(this.program, 'u_firePosition'),
             fireColor: gl.getUniformLocation(this.program, 'u_fireColor'),

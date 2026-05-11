@@ -45,6 +45,20 @@
         ui.clear();
     });
 
+    ui.container.addEventListener('toggle-normal-mapping', () => {
+        const enabled = scene.toggleNormalMapping();
+        ui.normalMappingBtn.style.background = enabled ? '#4CAF50' : '#ccc';
+        console.log('Normal Mapping:', enabled ? 'Abilitato' : 'Disabilitato');
+    });
+
+    window.addEventListener('keydown', (event) => {
+        if (event.key.toLowerCase() === 'n') {
+            const enabled = scene.toggleNormalMapping();
+            ui.normalMappingBtn.style.background = enabled ? '#4CAF50' : '#ccc';
+            console.log('Normal Mapping:', enabled ? 'Abilitato' : 'Disabilitato');
+        }
+    });
+
     window.addEventListener('mouseup', (event) => {
         if (dragging) {
             // Verifica se c'è stato un drag significativo

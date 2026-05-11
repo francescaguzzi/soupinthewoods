@@ -18,6 +18,8 @@
         layout(location = 2) in mat4 a_instanceMatrix;
         // Normale del vertice (layout location 6, dopo i 4 attributi della matrice istanza)
         layout(location = 6) in vec3 a_normal;
+        // Tangente per normal mapping (layout location 7)
+        layout(location = 7) in vec3 a_tangent;
 
         // View matrix fornita dalla camera.
         uniform mat4 u_view;
@@ -30,6 +32,7 @@
         out vec3 v_worldPos;
         // Normale mondo del vertice (per calcoli speculari)
         out vec3 v_normal;
+        out vec3 v_tangent; 
 
         void main() {
             // Conserva le UV originali.
@@ -39,6 +42,7 @@
             v_worldPos = worldPos.xyz;
             // Trasforma la normale in spazio mondo usando mat3 della matrice istanza
             v_normal = normalize(mat3(a_instanceMatrix) * a_normal);
+            v_tangent = normalize(mat3(a_instanceMatrix) * a_tangent);
             // Trasforma il vertice da spazio mondo a clip space.
             gl_Position = u_projection * u_view * worldPos;
         }
@@ -52,7 +56,7 @@
 
         in vec3 v_worldPos; // Posizione mondo interpolata dal vertex shader.
         in vec3 v_normal; // Normale mondo interpolata dal vertex shader.
-
+        in vec3 v_tangent; // Tangente interpolata dal vertex shader.
         uniform vec4 u_color; // Colore base del materiale.
 
         uniform bool u_useTexture;
@@ -70,6 +74,8 @@
         uniform float u_moonIntensity;
 
         uniform vec3 u_viewPosition; // Posizione della fotocamera (worldspace) per calcolo speculare
+        uniform bool u_useNormalMap;
+        uniform sampler2D u_normalMap;
 
         out vec4 outColor; // Colore finale scritto nel framebuffer.
 
@@ -87,6 +93,20 @@
 
             // Vettori necessari per illuminazione Phong
             vec3 N = normalize(v_normal);
+
+            // BUMP MAPPING
+            if (u_useNormalMap) {
+                vec3 T = normalize(v_tangent);
+                T = normalize(T - dot(T, N) * N); 
+                vec3 B = cross(N, T);
+                mat3 TBN = mat3(T, B, N);
+
+                vec3 normalMap = texture(u_normalMap, v_uv).rgb;
+                normalMap = normalize(normalMap * 2.0 - 1.0);
+
+                N = normalize(TBN * normalMap);
+            }
+
             vec3 V = normalize(u_viewPosition - v_worldPos);
 
             // ========== FUOCO (Luce puntiforme) ==========

@@ -171,6 +171,28 @@ function materialTexturePath(material) {
 	return material?.parameter?.get('map_Kd') || material?.parameter?.get('map_d') || material?.parameter?.get('map_Ke') || null;
 }
 
+function materialNormalPath(material) {
+    return material?.parameter?.get('map_Bump') || 
+           material?.parameter?.get('map_Kn') || null;
+}
+
+async function extractNormalMaps(mtlText, mesh) {
+    const lines = mtlText.split('\n');
+    let currentMaterial = null;
+    for (const line of lines) {
+        const buf = line.trim().split(/\s+/);
+        if (buf[0] === 'newmtl') {
+            currentMaterial = mesh.materials.find(m => m.name === buf[1]) || null;
+        }
+        if (buf[0].toLowerCase() === 'map_bump' && currentMaterial) {
+            const filename = buf.slice(1).find(token => /\.(jpg|jpeg|png)$/i.test(token));
+            if (filename) {
+                currentMaterial.parameter.set('map_Bump', filename);
+            }
+        }
+    }
+}
+
 function shouldAlphaClip(material) {
 	const name = String(material?.name || '').toLowerCase();
 	return name.includes('leave');
@@ -187,6 +209,7 @@ function meshToGeometry(mesh, allowedMaterialIndices = null) {
 	const positions = [];
 	const uvs = [];
 	const normals = [];
+	const tangents = [];
 
 	const materialSet = allowedMaterialIndices ? new Set(allowedMaterialIndices) : null;
 
@@ -197,26 +220,55 @@ function meshToGeometry(mesh, allowedMaterialIndices = null) {
 		if (materialSet && !materialSet.has(face.material ?? 0)) continue;
 		// Triangola il poligono in fan (v0-v1-v2, v0-v2-v3, v0-v3-v4, ...)
 		for (let t = 1; t < face.n_v_e - 1; t += 1) {
-			for (const idx of [0, t, t + 1]) {
-                const vertex = mesh.vert[face.vert[idx]];
-                positions.push(vertex.x, vertex.y, vertex.z);
+			const vertexIndices = [0, t, t + 1];
+			const vertexData = vertexIndices.map(idx => {
+				const v = mesh.vert[face.vert[idx]];
+				const tc = mesh.textCoords[face.textCoordsIndex[idx]];
+				return {
+					pos: [v.x, v.y, v.z],
+					uv: [tc ? tc.u : 0, tc ? tc.v : 0],
+				};
+			});
 
-                const texCoord = mesh.textCoords[face.textCoordsIndex[idx]];
-                uvs.push(texCoord ? texCoord.u : 0, texCoord ? texCoord.v : 0);
+			// Calcolo tangenti per bump mapping 
+			const e1 = m4.subtractVectors(vertexData[1].pos, vertexData[0].pos, []);
+			const e2 = m4.subtractVectors(vertexData[2].pos, vertexData[0].pos, []);
+			const du1 = vertexData[1].uv[0] - vertexData[0].uv[0];
+			const dv1 = vertexData[1].uv[1] - vertexData[0].uv[1];
+			const du2 = vertexData[2].uv[0] - vertexData[0].uv[0];
+			const dv2 = vertexData[2].uv[1] - vertexData[0].uv[1];
+			
+			const denom = du1 * dv2 - du2 * dv1;
+			const f = Math.abs(denom) > 0.0001 ? 1.0 / denom : 0;
+			
+			const tangent = [
+				f * (dv2 * e1[0] - dv1 * e2[0]),
+				f * (dv2 * e1[1] - dv1 * e2[1]),
+				f * (dv2 * e1[2] - dv1 * e2[2]),
+			]; // normalizzazione la fa lo shader 
+			
+			for (let j = 0; j < 3; j++) {
+				const idx = vertexIndices[j];
+				positions.push(...vertexData[j].pos);
+				uvs.push(...vertexData[j].uv);
 
-                const normal = mesh.normal[face.normalVertexIndex[idx]]; // lettura normali per Phong shading
-                normals.push(
-                    normal ? normal.i : 0,
-                    normal ? normal.j : 1,
-                    normal ? normal.k : 0
-                );
-            }
+				const normal = mesh.normal[face.normalVertexIndex[idx]];
+				normals.push(
+					normal ? normal.i : 0,
+					normal ? normal.j : 1,
+					normal ? normal.k : 0
+				);
+
+				tangents.push(tangent[0], tangent[1], tangent[2]);
+			}
 		}
 	}
+
 	return {
 		positions: new Float32Array(positions),
 		uvs: new Float32Array(uvs),
 		normals: new Float32Array(normals),
+		tangents: new Float32Array(tangents),
 		vertexCount: positions.length / 3,
 	};
 }
@@ -257,6 +309,15 @@ function createInstancedModel(gl, geometry, attribLocations, instanceMatrices) {
 		gl.enableVertexAttribArray(attribLocations.normal);
 		// Ogni vertice ha 3 float (x, y, z)
 		gl.vertexAttribPointer(attribLocations.normal, 3, gl.FLOAT, false, 0, 0);
+	}
+
+	// ========== TANGENT ATTRIBUTE ==========
+	if (geometry.tangents && attribLocations.tangent !== undefined && attribLocations.tangent !== -1) {
+		const tangentBuffer = gl.createBuffer();
+		gl.bindBuffer(gl.ARRAY_BUFFER, tangentBuffer);
+		gl.bufferData(gl.ARRAY_BUFFER, geometry.tangents, gl.STATIC_DRAW);
+		gl.enableVertexAttribArray(attribLocations.tangent);
+		gl.vertexAttribPointer(attribLocations.tangent, 3, gl.FLOAT, false, 0, 0);
 	}
 
 	// ========== INSTANCE MATRIX ATTRIBUTE ==========
@@ -309,6 +370,8 @@ function buildModel(gl, modelData, instanceMatrices, attribLocations) {
 			materialName: renderable.materialName,
 			alphaClip: renderable.alphaClip,
 			alphaThreshold: renderable.alphaThreshold,
+			normalTexture: renderable.normalTexture,
+			useNormalMap: renderable.useNormalMap,
 		};
 		renderables.push(renderableObj);
 	}
@@ -332,6 +395,7 @@ async function loadOBJModel(gl, objUrl, options = {}) {
 			const mtlUrl = resolveAssetUrl(objUrl, result.fileMtl);
 			const mtlText = await loadTextResource(mtlUrl);
 			glmReadMTL(mtlText, mesh);
+			extractNormalMaps(mtlText, mesh); // Estrai map_Bump dal MTL
 		} catch (error) {
 			console.warn(error);
 		}
@@ -362,12 +426,26 @@ async function loadOBJModel(gl, objUrl, options = {}) {
 			}
 		}
 
+		const normalPath = materialNormalPath(material);
+		const normalUrl = normalPath ? resolveAssetUrl(options.textureBaseDir || objUrl, normalPath) : null;
+		let normalTexture = null;
+		if (normalUrl) {
+			try {
+				normalTexture = await loadTexture(gl, normalUrl);
+				console.log('✓ Normal map caricato:', material?.name, '-', normalPath);
+			} catch (error) {
+				console.warn('✗ Errore caricamento normal map:', material?.name, '-', normalPath, error);
+			}
+		}
+
 		renderables.push({
 			materialName: material?.name || `material_${materialIndex}`,
 			geometry,
 			materialColor: materialColor(material),
 			texture,
 			useTexture: Boolean(texture),
+			normalTexture,
+			useNormalMap: Boolean(normalTexture),
 			alphaClip: shouldAlphaClip(material),
 			alphaThreshold: 0.9,
 		});
