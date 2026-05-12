@@ -93,12 +93,6 @@ async function loadCubemap(gl, url) {
         gl.TEXTURE_CUBE_MAP_NEGATIVE_Z,
     ];
 
-	// await Promise.all(faces.map(async (face, i) => {
-    //     const image = await loadImageResource(urls[i]);
-    //     gl.bindTexture(gl.TEXTURE_CUBE_MAP, texture);
-    //     gl.texImage2D(face, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
-    // }));
-
     const image = await loadImageResource(url);
     for (const face of faces) {
         gl.texImage2D(face, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
@@ -158,34 +152,33 @@ function raySphereIntersect(rayOrigin, rayDir, sphere, worldMatrix) {
 
 // Estrae il colore diffuse (Kd) o ambient (Ka) di un materiale MTL.
 // Ritorna [R, G, B] normalizzati tra 0 e 1.
-function materialColor(material) {
-	const kd = material?.parameter?.get('Kd');
-	const ka = material?.parameter?.get('Ka');
-	const source = kd || ka || [1, 1, 1];
-	return [source[0] ?? 1, source[1] ?? 1, source[2] ?? 1];
+function materialColor(material, type) {
+	if (type === 'diffuse') {
+		const kd = material?.parameter?.get('Kd');
+		const ka = material?.parameter?.get('Ka');
+		const source = kd || ka || [1, 1, 1];
+		return [source[0] ?? 1, source[1] ?? 1, source[2] ?? 1];
+	}
+
+	if (type === 'specular') {
+		const ks = material?.parameter?.get('Ks');
+		const source = ks || [0.5, 0.5, 0.5]; // Default grigio medio se non specificato
+		return [source[0] ?? 0.5, source[1] ?? 0.5, source[2] ?? 0.5];
+	}
 }
 
-function materialSpecularColor(material) {
-	const ks = material?.parameter?.get('Ks');
-	const source = ks || [0.5, 0.5, 0.5]; // Default grigio medio se non specificato
-	return [source[0] ?? 0.5, source[1] ?? 0.5, source[2] ?? 0.5];
+function materialTexturePath(material, type) {
+	if (type === 'diffuse') 
+		return material?.parameter?.get('map_Kd') || material?.parameter?.get('map_d') || material?.parameter?.get('map_Ke') || null;
+	
+	if (type === 'bump') 
+		return material?.parameter?.get('map_Bump') || null;
+	
+	if (type === 'specular') 
+		return material?.parameter?.get('map_Ks') || null;
 }
 
-// Estrae il percorso della texture
-function materialTexturePath(material) {
-	return material?.parameter?.get('map_Kd') || material?.parameter?.get('map_d') || material?.parameter?.get('map_Ke') || null;
-}
-
-function materialNormalPath(material) {
-    return material?.parameter?.get('map_Bump') || 
-           material?.parameter?.get('map_Kn') || null;
-}
-
-function materialSpecularPath(material) {
-    return material?.parameter?.get('map_Ks') || null;
-}
-
-async function extractNormalMaps(mtlText, mesh) {
+async function extractBumpMaps(mtlText, mesh) {
     const lines = mtlText.split('\n');
     let currentMaterial = null;
     for (const line of lines) {
@@ -380,8 +373,9 @@ function buildModel(gl, modelData, instanceMatrices, attribLocations) {
 			materialName: renderable.materialName,
 			alphaClip: renderable.alphaClip,
 			alphaThreshold: renderable.alphaThreshold,
-			normalTexture: renderable.normalTexture,
-			useNormalMap: renderable.useNormalMap,
+			bumpTexture: renderable.bumpTexture,
+			useBumpMap: renderable.useBumpMap,
+			bumpMapSize: renderable.bumpMapSize,
 			specularTexture: renderable.specularTexture,
 			useSpecularMap: renderable.useSpecularMap,
 		};
@@ -407,7 +401,7 @@ async function loadOBJModel(gl, objUrl, options = {}) {
 			const mtlUrl = resolveAssetUrl(objUrl, result.fileMtl);
 			const mtlText = await loadTextResource(mtlUrl);
 			glmReadMTL(mtlText, mesh);
-			extractNormalMaps(mtlText, mesh); // Estrai map_Bump dal MTL
+			extractBumpMaps(mtlText, mesh); // Estrai map_Bump dal MTL
 		} catch (error) {
 			console.warn(error);
 		}
@@ -427,7 +421,7 @@ async function loadOBJModel(gl, objUrl, options = {}) {
 		const geometry = meshToGeometry(mesh, [materialIndex]); // estrae solo le facce con il materiale corrente
 		if (geometry.vertexCount === 0) continue;
 
-		const texturePath = materialTexturePath(material);
+		const texturePath = materialTexturePath(material, 'diffuse');
 		const textureUrl = texturePath ? resolveAssetUrl(options.textureBaseDir || objUrl, texturePath) : null;
 		let texture = null;
 		if (textureUrl) {
@@ -438,18 +432,22 @@ async function loadOBJModel(gl, objUrl, options = {}) {
 			}
 		}
 
-		const normalPath = materialNormalPath(material);
-		const normalUrl = normalPath ? resolveAssetUrl(options.textureBaseDir || objUrl, normalPath) : null;
-		let normalTexture = null;
-		if (normalUrl) {
+		const bumpPath = materialTexturePath(material, 'bump');
+		const bumpUrl = bumpPath ? resolveAssetUrl(options.textureBaseDir || objUrl, bumpPath) : null;
+		let bumpTexture = null;
+		let bumpMapSize = [1024, 1024]; 
+		if (bumpUrl) {
 			try {
-				normalTexture = await loadTexture(gl, normalUrl);
+				const img = await loadImageResource(bumpUrl);
+				bumpMapSize = [img.width, img.height];
+				bumpTexture = await loadTexture(gl, bumpUrl);
+				console.log('✓ Bump map caricato:', material?.name, '-', bumpPath, '- Dimensioni:', bumpMapSize);
 			} catch (error) {
-				console.warn('Errore caricamento normal map:', material?.name, '-', normalPath, error);
+				console.warn('Errore caricamento bump map:', material?.name, '-', bumpPath, error);
 			}
 		}
 
-		const specularPath = materialSpecularPath(material);
+		const specularPath = materialTexturePath(material, 'specular');
 		const specularUrl = specularPath ? resolveAssetUrl(options.textureBaseDir || objUrl, specularPath) : null;
 		let specularTexture = null;
 		if (specularUrl) {
@@ -463,12 +461,13 @@ async function loadOBJModel(gl, objUrl, options = {}) {
 		renderables.push({
 			materialName: material?.name || `material_${materialIndex}`,
 			geometry,
-			materialColor: materialColor(material),
-			materialSpecularColor: materialSpecularColor(material),
+			materialColor: materialColor(material, 'diffuse'),
+			materialSpecularColor: materialColor(material, 'specular'),
 			texture,
 			useTexture: Boolean(texture),
-			normalTexture,
-			useNormalMap: Boolean(normalTexture),
+			bumpTexture,
+			useBumpMap: Boolean(bumpTexture),
+			bumpMapSize,
 			specularTexture,
 			useSpecularMap: Boolean(specularTexture),
 			alphaClip: shouldAlphaClip(material),

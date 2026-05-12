@@ -10,6 +10,7 @@ Ni 1.500000
 d 1.000000
 illum 2
 map_Kd treewood.png
+map_Bump treewoodBump.png
 
 newmtl leave_jabami_00_mat
 Ns 96.078415

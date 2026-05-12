@@ -45,10 +45,10 @@
         ui.clear();
     });
 
-    ui.container.addEventListener('toggle-normal-mapping', () => {
-        const enabled = scene.toggleNormalMapping();
+    ui.container.addEventListener('toggle-bump-mapping', () => {
+        const enabled = scene.toggleBumpMapping();
         ui.normalMappingBtn.style.background = enabled ? '#4CAF50' : '#ccc';
-        console.log('Normal Mapping:', enabled ? 'Abilitato' : 'Disabilitato');
+        console.log('Bump Mapping:', enabled ? 'Abilitato' : 'Disabilitato');
     });
 
     ui.container.addEventListener('toggle-specular-mapping', () => {
@@ -59,9 +59,9 @@
 
     window.addEventListener('keydown', (event) => {
         if (event.key.toLowerCase() === 'n') {
-            const enabled = scene.toggleNormalMapping();
+            const enabled = scene.toggleBumpMapping();
             ui.normalMappingBtn.style.background = enabled ? '#4CAF50' : '#ccc';
-            console.log('Normal Mapping:', enabled ? 'Abilitato' : 'Disabilitato');
+            console.log('Bump Mapping:', enabled ? 'Abilitato' : 'Disabilitato');
         }
         if (event.key.toLowerCase() === 's') {
             const enabled = scene.toggleSpecularMapping();

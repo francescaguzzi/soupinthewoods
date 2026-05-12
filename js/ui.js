@@ -23,7 +23,7 @@ class UI {
             </div>
             <div id="inventory">
                 <div id="inventory-slots"></div>
-                <button id="btn-clear">Svuota inventario</button>
+                <button id="btn-clear">Empty Backpack</button>
             </div>
         `;
         document.body.appendChild(this.container);
@@ -40,7 +40,7 @@ class UI {
         });
         
         this.normalMappingBtn.addEventListener('click', () => {
-            this.container.dispatchEvent(new CustomEvent('toggle-normal-mapping'));
+            this.container.dispatchEvent(new CustomEvent('toggle-bump-mapping'));
         });
 
         this.specularMappingBtn.addEventListener('click', () => {

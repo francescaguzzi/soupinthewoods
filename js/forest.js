@@ -28,13 +28,13 @@ class Forest {
         this.originalMouseMatrices = null; 
         this.mouseModel = null;
 
-        this.normalMappingEnabled = true;
+        this.bumpMappingEnabled = true;
         this.specularMappingEnabled = true; 
     }
 
-    toggleNormalMapping() {
-        this.normalMappingEnabled = !this.normalMappingEnabled;
-        return this.normalMappingEnabled;
+    toggleBumpMapping() {
+        this.bumpMappingEnabled = !this.bumpMappingEnabled;
+        return this.bumpMappingEnabled;
     }
 
     toggleSpecularMapping() {
@@ -396,7 +396,7 @@ class Forest {
                 gl.uniform3fv(uniformLocations.specularColor, renderable.specularColor || [0.5, 0.5, 0.5]); // Imposta il colore speculare del materiale.
                 gl.uniform1i(uniformLocations.useTexture, renderable.useTexture ? 1 : 0); // Abilita/disabilita il campionamento delle texture.
                 
-                gl.uniform1i(uniformLocations.useNormalMap, (renderable.useNormalMap && this.normalMappingEnabled) ? 1 : 0); // Abilita/disabilita il normal mapping (controlla toggle dell'utente).
+                gl.uniform1i(uniformLocations.useBumpMap, (renderable.useBumpMap && this.bumpMappingEnabled) ? 1 : 0); // Abilita/disabilita il bump mapping (controlla toggle dell'utente).
                 
                 const useSpecValue = (renderable.useSpecularMap && this.specularMappingEnabled) ? 1 : 0;
                 gl.uniform1i(uniformLocations.useSpecularMap, useSpecValue); // Abilita/disabilita il specular mapping (controlla toggle dell'utente).
@@ -407,23 +407,30 @@ class Forest {
                 if (renderable.texture) {
                     gl.activeTexture(gl.TEXTURE0);
                     gl.bindTexture(gl.TEXTURE_2D, renderable.texture);
-
-                    if (renderable.normalTexture && renderable.useNormalMap && this.normalMappingEnabled) {
-                        gl.activeTexture(gl.TEXTURE2);
-                        gl.bindTexture(gl.TEXTURE_2D, renderable.normalTexture);
-                        gl.uniform1i(uniformLocations.normalMapSampler, 2);
-                    }
-
-                    if (renderable.specularTexture && renderable.useSpecularMap && this.specularMappingEnabled) {
-                        gl.activeTexture(gl.TEXTURE1);
-                        gl.bindTexture(gl.TEXTURE_2D, renderable.specularTexture);
-                        gl.uniform1i(uniformLocations.specularMapSampler, 1);
-                    } else {
-                        gl.activeTexture(gl.TEXTURE1);
-                        gl.bindTexture(gl.TEXTURE_2D, null);
-                    }
-
                 } else {
+                    gl.activeTexture(gl.TEXTURE0);
+                    gl.bindTexture(gl.TEXTURE_2D, null);
+                }
+
+                // Bump mapping - assegnato indipendentemente dalla texture diffusa
+                if (renderable.bumpTexture && renderable.useBumpMap && this.bumpMappingEnabled) {
+                    gl.activeTexture(gl.TEXTURE2);
+                    gl.bindTexture(gl.TEXTURE_2D, renderable.bumpTexture);
+                    gl.uniform1i(uniformLocations.bumpMapSampler, 2);
+                    gl.uniform2fv(uniformLocations.bumpMapSize, renderable.bumpMapSize);
+                    gl.uniform1f(uniformLocations.bumpMapStrength, 5.0);
+                } else {
+                    gl.activeTexture(gl.TEXTURE2);
+                    gl.bindTexture(gl.TEXTURE_2D, null);
+                }
+
+                // Specular mapping
+                if (renderable.specularTexture && renderable.useSpecularMap && this.specularMappingEnabled) {
+                    gl.activeTexture(gl.TEXTURE1);
+                    gl.bindTexture(gl.TEXTURE_2D, renderable.specularTexture);
+                    gl.uniform1i(uniformLocations.specularMapSampler, 1);
+                } else {
+                    gl.activeTexture(gl.TEXTURE1);
                     gl.bindTexture(gl.TEXTURE_2D, null);
                 }
                 gl.uniform1i(uniformLocations.textureSampler, 0); // Informa il fragment shader su quale sampler leggere la texture.

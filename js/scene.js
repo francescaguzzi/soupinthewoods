@@ -17,9 +17,9 @@ class Scene {
         this.forest = null;
     }
 
-    toggleNormalMapping() {
+    toggleBumpMapping() {
         if (this.forest) {
-            return this.forest.toggleNormalMapping();
+            return this.forest.toggleBumpMapping();
         }
     }
 
@@ -81,9 +81,11 @@ class Scene {
             textureSampler: gl.getUniformLocation(this.program, 'u_texture'),
             alphaClip: gl.getUniformLocation(this.program, 'u_alphaClip'),
             alphaThreshold: gl.getUniformLocation(this.program, 'u_alphaThreshold'),
-            // normal mapping
-            useNormalMap: gl.getUniformLocation(this.program, 'u_useNormalMap'),
-            normalMapSampler: gl.getUniformLocation(this.program, 'u_normalMap'),
+            // bump mapping
+            useBumpMap: gl.getUniformLocation(this.program, 'u_useBumpMap'),
+            bumpMapSampler: gl.getUniformLocation(this.program, 'u_bumpMap'),
+            bumpMapSize: gl.getUniformLocation(this.program, 'u_bumpMapSize'),
+            bumpMapStrength: gl.getUniformLocation(this.program, 'u_bumpMapStrength'),
             // specular mapping
             useSpecularMap: gl.getUniformLocation(this.program, 'u_useSpecularMap'),
             specularMapSampler: gl.getUniformLocation(this.program, 'u_specularMap'),
