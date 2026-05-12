@@ -27,6 +27,35 @@ class Forest {
         this.mouseMatrices = null;
         this.originalMouseMatrices = null; 
         this.mouseModel = null;
+
+        this.bumpMappingEnabled = true;
+        this.bumpMapStrength = 3.5; 
+        this.specularMappingEnabled = true; 
+        this.alphaClippingEnabled = true;
+        this.alphaThreshold = 0.5;
+    }
+
+    toggleBumpMapping() {
+        this.bumpMappingEnabled = !this.bumpMappingEnabled;
+        return this.bumpMappingEnabled;
+    }
+
+    setBumpMapStrength(strength) {
+        this.bumpMapStrength = strength;
+    }
+
+    toggleSpecularMapping() {
+        this.specularMappingEnabled = !this.specularMappingEnabled;
+        return this.specularMappingEnabled;
+    }
+
+    toggleAlphaClipping() {
+        this.alphaClippingEnabled = !this.alphaClippingEnabled;
+        return this.alphaClippingEnabled;
+    }
+
+    setAlphaThreshold(threshold) {
+        this.alphaThreshold = threshold;
     }
 
     /* ------------------------------------------ */
@@ -37,7 +66,7 @@ class Forest {
         const x = Math.cos(angle) * radius;
         const z = Math.sin(angle) * radius;
         const rotY = Math.random() * Math.PI * 2;
-        // const scale = 0.7 + Math.random() * 0.6;
+
         return m4.multiply(
             m4.translation(x, this.groundTopY, z),
             m4.multiply(m4.yRotation(rotY), m4.scaling(1, 1, 1))
@@ -60,7 +89,7 @@ class Forest {
 
     _initMushroomModels() {
         // Crea un modello per ogni tipo di mesh con MAX_MUSHROOMS istanze placeholder
-        // Usiamo matrici di scala zero per "nascondere" le istanze inutilizzate
+        // Matrici di scala zero per "nascondere" le istanze inutilizzate
         const hiddenMatrix = m4.scaling(0, 0, 0);
         const placeholderMatrices = Array(this.MAX_MUSHROOMS).fill(hiddenMatrix);
 
@@ -380,7 +409,14 @@ class Forest {
 
                 gl.bindVertexArray(renderable.vao);  // Associa il VAO di questo materiale.
                 gl.uniform4fv(uniformLocations.color, [...renderable.color, 1.0]); // Imposta il colore base del materiale (RGB + alpha=1).
+                gl.uniform3fv(uniformLocations.specularColor, renderable.specularColor || [0.5, 0.5, 0.5]); // Imposta il colore speculare del materiale.
                 gl.uniform1i(uniformLocations.useTexture, renderable.useTexture ? 1 : 0); // Abilita/disabilita il campionamento delle texture.
+                
+                gl.uniform1i(uniformLocations.useBumpMap, (renderable.useBumpMap && this.bumpMappingEnabled) ? 1 : 0); // Abilita/disabilita il bump mapping (controlla toggle dell'utente).
+                
+                const useSpecValue = (renderable.useSpecularMap && this.specularMappingEnabled) ? 1 : 0;
+                gl.uniform1i(uniformLocations.useSpecularMap, useSpecValue); // Abilita/disabilita il specular mapping (controlla toggle dell'utente).
+
                 gl.uniform1i(uniformLocations.alphaClip, renderable.alphaClip ? 1 : 0); // Abilita/disabilita alpha clipping (per le foglie trasparenti).
                 gl.uniform1f(uniformLocations.alphaThreshold, renderable.alphaThreshold ?? 0.5); 
 
@@ -388,6 +424,29 @@ class Forest {
                     gl.activeTexture(gl.TEXTURE0);
                     gl.bindTexture(gl.TEXTURE_2D, renderable.texture);
                 } else {
+                    gl.activeTexture(gl.TEXTURE0);
+                    gl.bindTexture(gl.TEXTURE_2D, null);
+                }
+
+                // Bump mapping - assegnato indipendentemente dalla texture diffusa
+                if (renderable.bumpTexture && renderable.useBumpMap && this.bumpMappingEnabled) {
+                    gl.activeTexture(gl.TEXTURE2);
+                    gl.bindTexture(gl.TEXTURE_2D, renderable.bumpTexture);
+                    gl.uniform1i(uniformLocations.bumpMapSampler, 2);
+                    gl.uniform2fv(uniformLocations.bumpMapSize, renderable.bumpMapSize);
+                    gl.uniform1f(uniformLocations.bumpMapStrength, this.bumpMapStrength);
+                } else {
+                    gl.activeTexture(gl.TEXTURE2);
+                    gl.bindTexture(gl.TEXTURE_2D, null);
+                }
+
+                // Specular mapping
+                if (renderable.specularTexture && renderable.useSpecularMap && this.specularMappingEnabled) {
+                    gl.activeTexture(gl.TEXTURE1);
+                    gl.bindTexture(gl.TEXTURE_2D, renderable.specularTexture);
+                    gl.uniform1i(uniformLocations.specularMapSampler, 1);
+                } else {
+                    gl.activeTexture(gl.TEXTURE1);
                     gl.bindTexture(gl.TEXTURE_2D, null);
                 }
                 gl.uniform1i(uniformLocations.textureSampler, 0); // Informa il fragment shader su quale sampler leggere la texture.

@@ -20,7 +20,7 @@ d 1.000000
 illum 3
 map_Kd MetalColor.jpeg
 map_Ks MetalSpecular.jpg
-map_Bump -bm 1.000000 MetalNormal.jpeg
+map_Bump -bm 1.000000 MetalBump.png
 
 newmtl Rocks
 Ns 250.000000
@@ -31,7 +31,7 @@ d 1.000000
 illum 2
 map_Kd RockColor.jpeg
 map_Ks RockSpecular.jpg
-map_Bump -bm 1.000000 RockNormal.jpeg
+map_Bump -bm 1.000000 RockBump.png
 
 newmtl Soup
 Ns 761.652893
@@ -52,7 +52,7 @@ d 1.000000
 illum 2
 map_Kd WoodColor.jpeg
 map_Ks WoodSpecular.jpg
-map_Bump -bm 1.000000 WoodNormal.jpeg
+map_Bump -bm 1.000000 WoodBump.png
 
 newmtl WoodEnd
 Ns 0.000000
@@ -63,4 +63,3 @@ d 1.000000
 illum 2
 map_Kd TreeEndColor.jpeg
 map_Ks WoodEndSpecular.jpg
-map_Bump -bm 1.000000 WoodEndNormal.jpeg

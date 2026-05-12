@@ -18,6 +18,8 @@
         layout(location = 2) in mat4 a_instanceMatrix;
         // Normale del vertice (layout location 6, dopo i 4 attributi della matrice istanza)
         layout(location = 6) in vec3 a_normal;
+        // Tangente per normal mapping (layout location 7)
+        layout(location = 7) in vec3 a_tangent;
 
         // View matrix fornita dalla camera.
         uniform mat4 u_view;
@@ -30,6 +32,7 @@
         out vec3 v_worldPos;
         // Normale mondo del vertice (per calcoli speculari)
         out vec3 v_normal;
+        out vec3 v_tangent; 
 
         void main() {
             // Conserva le UV originali.
@@ -39,6 +42,7 @@
             v_worldPos = worldPos.xyz;
             // Trasforma la normale in spazio mondo usando mat3 della matrice istanza
             v_normal = normalize(mat3(a_instanceMatrix) * a_normal);
+            v_tangent = normalize(mat3(a_instanceMatrix) * a_tangent);
             // Trasforma il vertice da spazio mondo a clip space.
             gl_Position = u_projection * u_view * worldPos;
         }
@@ -52,7 +56,7 @@
 
         in vec3 v_worldPos; // Posizione mondo interpolata dal vertex shader.
         in vec3 v_normal; // Normale mondo interpolata dal vertex shader.
-
+        in vec3 v_tangent; // Tangente interpolata dal vertex shader.
         uniform vec4 u_color; // Colore base del materiale.
 
         uniform bool u_useTexture;
@@ -70,6 +74,16 @@
         uniform float u_moonIntensity;
 
         uniform vec3 u_viewPosition; // Posizione della fotocamera (worldspace) per calcolo speculare
+        
+        uniform bool u_useBumpMap;
+        uniform sampler2D u_bumpMap;
+        uniform vec2 u_bumpMapSize; 
+        uniform float u_bumpMapStrength; 
+        
+
+        uniform bool u_useSpecularMap;
+        uniform sampler2D u_specularMap;
+        uniform vec3 u_specularColor; // Colore speculare del materiale (Ks)
 
         out vec4 outColor; // Colore finale scritto nel framebuffer.
 
@@ -87,6 +101,22 @@
 
             // Vettori necessari per illuminazione Phong
             vec3 N = normalize(v_normal);
+
+            // BUMP MAPPING
+            if (u_useBumpMap) {
+                vec3 T = normalize(v_tangent);
+                T = normalize(T - dot(T, N) * N); 
+                vec3 B = cross(N, T);
+                
+                float bm0 = texture(u_bumpMap, v_uv).r; // Assume la mappa bump è in scala di grigi (usa solo il canale rosso)
+                float bmRight = texture(u_bumpMap, v_uv + vec2(1.0 / u_bumpMapSize.x, 0.0)).r;
+                float bmUp = texture(u_bumpMap, v_uv + vec2(0.0, 1.0 / u_bumpMapSize.y)).r;
+
+                vec3 bumpVector = (bmRight - bm0) * T + (bmUp - bm0) * B;
+
+                N = normalize(N + bumpVector * u_bumpMapStrength);
+            }
+
             vec3 V = normalize(u_viewPosition - v_worldPos);
 
             // ========== FUOCO (Luce puntiforme) ==========
@@ -98,10 +128,13 @@
             float wrappedLambertian_fire = lambertian_fire * 0.7 + 0.3;
             vec3 diffuseLight_fire = u_fireColor * brightness_fire * wrappedLambertian_fire * color.rgb;
 
+            // Sampla la specular map (se abilitata)
+            vec3 specularMap = u_useSpecularMap ? texture(u_specularMap, v_uv).rgb : vec3(1.0);
+
             // Specular dal fuoco (Phong)
             vec3 H_fire = normalize(L_fire + V);
             float specularIntensity_fire = pow(max(dot(N, H_fire), 0.0), 32.0);
-            vec3 specularLight_fire = u_fireColor * brightness_fire * specularIntensity_fire * 0.6 * lambertian_fire;
+            vec3 specularLight_fire = u_specularColor * u_fireColor * brightness_fire * specularIntensity_fire * 0.4 * lambertian_fire * specularMap;
 
             // ========== LUNA (Luce direzionale debole) ==========
             vec3 L_moon = normalize(-u_moonDirection); // Inverti direzione
@@ -111,11 +144,11 @@
             // specular luna
             vec3 H_moon = normalize(L_moon + V);
             float specularIntensity_moon = pow(max(dot(N, H_moon), 0.0), 32.0);
-            vec3 specularLight_moon = u_moonColor * u_moonIntensity * specularIntensity_moon * 0.15 * lambertian_moon;
+            vec3 specularLight_moon = u_specularColor * u_moonColor * u_moonIntensity * specularIntensity_moon * 0.5 * lambertian_moon * specularMap;
 
-            vec3 ambient = color.rgb * 0.1;
+            // vec3 ambient = color.rgb * 0.1;
 
-            vec3 finalRgb = ambient + diffuseLight_fire + specularLight_fire + diffuseLight_moon + specularLight_moon;
+            vec3 finalRgb = diffuseLight_fire + specularLight_fire + diffuseLight_moon + specularLight_moon;
             finalRgb = clamp(finalRgb, 0.0, 1.0);
             outColor = vec4(finalRgb, color.a);
         }

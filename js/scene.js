@@ -17,6 +17,18 @@ class Scene {
         this.forest = null;
     }
 
+    toggleBumpMapping() {
+        if (this.forest) {
+            return this.forest.toggleBumpMapping();
+        }
+    }
+
+    toggleSpecularMapping() {
+        if (this.forest) {
+            return this.forest.toggleSpecularMapping();
+        }
+    }
+
     async init() {
 
         const gl = this.gl;
@@ -57,6 +69,7 @@ class Scene {
             uv: gl.getAttribLocation(this.program, 'a_uv'),
             instanceMatrix: gl.getAttribLocation(this.program, 'a_instanceMatrix'),
             normal: gl.getAttribLocation(this.program, 'a_normal'),
+            tangent: gl.getAttribLocation(this.program, 'a_tangent'), 
         };
 
         // Legge le uniform una sola volta per evitare lookup ogni frame.
@@ -68,6 +81,16 @@ class Scene {
             textureSampler: gl.getUniformLocation(this.program, 'u_texture'),
             alphaClip: gl.getUniformLocation(this.program, 'u_alphaClip'),
             alphaThreshold: gl.getUniformLocation(this.program, 'u_alphaThreshold'),
+            // bump mapping
+            useBumpMap: gl.getUniformLocation(this.program, 'u_useBumpMap'),
+            bumpMapSampler: gl.getUniformLocation(this.program, 'u_bumpMap'),
+            bumpMapSize: gl.getUniformLocation(this.program, 'u_bumpMapSize'),
+            bumpMapStrength: gl.getUniformLocation(this.program, 'u_bumpMapStrength'),
+            // specular mapping
+            useSpecularMap: gl.getUniformLocation(this.program, 'u_useSpecularMap'),
+            specularMapSampler: gl.getUniformLocation(this.program, 'u_specularMap'),
+            specularColor: gl.getUniformLocation(this.program, 'u_specularColor'),
+
             // Fire light uniforms
             firePosition: gl.getUniformLocation(this.program, 'u_firePosition'),
             fireColor: gl.getUniformLocation(this.program, 'u_fireColor'),

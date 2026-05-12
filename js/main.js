@@ -45,6 +45,31 @@
         ui.clear();
     });
 
+    ui.container.addEventListener('toggle-bump-mapping', () => {
+        const enabled = scene.toggleBumpMapping();
+        ui.normalMappingBtn.style.background = enabled ? '#4CAF50' : '#ccc';
+        console.log('Bump Mapping:', enabled ? 'Abilitato' : 'Disabilitato');
+    });
+
+    ui.container.addEventListener('toggle-specular-mapping', () => {
+        const enabled = scene.toggleSpecularMapping();
+        ui.specularMappingBtn.style.background = enabled ? '#4CAF50' : '#ccc';
+        console.log('Specular Mapping:', enabled ? 'Abilitato' : 'Disabilitato');
+    });
+
+    window.addEventListener('keydown', (event) => {
+        if (event.key.toLowerCase() === 'n') {
+            const enabled = scene.toggleBumpMapping();
+            ui.normalMappingBtn.style.background = enabled ? '#4CAF50' : '#ccc';
+            console.log('Bump Mapping:', enabled ? 'Abilitato' : 'Disabilitato');
+        }
+        if (event.key.toLowerCase() === 's') {
+            const enabled = scene.toggleSpecularMapping();
+            ui.specularMappingBtn.style.background = enabled ? '#4CAF50' : '#ccc';
+            console.log('Specular Mapping:', enabled ? 'Abilitato' : 'Disabilitato');
+        }
+    });
+
     window.addEventListener('mouseup', (event) => {
         if (dragging) {
             // Verifica se c'è stato un drag significativo
