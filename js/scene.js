@@ -18,16 +18,31 @@ class Scene {
     }
 
     toggleBumpMapping() {
-        if (this.forest) {
+        if (this.forest) 
             return this.forest.toggleBumpMapping();
-        }
+    }
+
+    setBumpMapStrength(strength) {
+        if (this.forest)
+            this.forest.setBumpMapStrength(strength);
     }
 
     toggleSpecularMapping() {
-        if (this.forest) {
+        if (this.forest)
             return this.forest.toggleSpecularMapping();
-        }
     }
+
+    toggleAlphaClipping() {
+        if (this.forest)
+            return this.forest.toggleAlphaClipping();
+    }
+
+    setAlphaThreshold(threshold) {
+        if (this.forest) 
+            this.forest.setAlphaThreshold(threshold);
+    }
+
+    /* ------------------------- */
 
     async init() {
 

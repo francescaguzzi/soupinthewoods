@@ -2,7 +2,10 @@ class Camera {
     
     constructor(position = [0, 0, 0], target = [0, 0, 0], up = [0, 1, 0]) {
         
-        this.minY = 0; // per evitare che la camera vada sotto il terreno
+        this.groundY = 0; // per evitare che la camera vada sotto il terreno
+        this.minDistance = 2;   
+        this.maxDistance = 25; 
+
         this.target = target;
 
         // Calcola la distanza dalla camera al target (raggio dell'orbita).
@@ -15,7 +18,6 @@ class Camera {
         // Memorizza l'asse up globale per mantenere coerenza.
         this.upAxis = up;
 
-        // Inizializza posizione, forward, right, up.
         this.position = position;
         this.forward = m4.normalize(m4.subtractVectors(target, position));
         this.right = m4.normalize(m4.cross(this.forward, up));
@@ -40,7 +42,7 @@ class Camera {
 
         // Limita phi per evitare gimbal lock, rovesciamento e camera sotto il ground.
         const minPhi = 0.1;
-        const maxPhiFromGround = Math.acos(Math.max(-1, Math.min(1, (this.minY - this.target[1]) / this.distance)));
+        const maxPhiFromGround = Math.acos(Math.max(-1, Math.min(1, (this.groundY - this.target[1]) / this.distance)));
         const maxPhi = Math.max(minPhi, Math.min(Math.PI - 0.1, maxPhiFromGround - 0.001));
         this.phi = Math.max(minPhi, Math.min(maxPhi, this.phi));
 
@@ -75,14 +77,25 @@ class Camera {
         this.position = m4.addVectors(this.position, displacement);
 
         // Impedisce alla camera di andare sotto Y = 0.
-        if (this.position[1] < this.minY) {
-            this.position[1] = this.minY;
+        if (this.position[1] < this.groundY) {
+            this.position[1] = this.groundY;
         }
         
         // Ricalcola la distanza dal target per mantenere il corretto zoom durante l'orbiting.
         const toTarget = m4.subtractVectors(this.position, this.target);
         this.distance = Math.sqrt(toTarget[0] * toTarget[0] + toTarget[1] * toTarget[1] + toTarget[2] * toTarget[2]);
+ 
+        if (this.distance < this.minDistance || this.distance > this.maxDistance) {
 
+            this.distance = Math.max(this.minDistance, Math.min(this.maxDistance, this.distance));
+            const normalized = m4.normalize(toTarget);
+            this.position = [
+                this.target[0] + normalized[0] * this.distance,
+                this.target[1] + normalized[1] * this.distance,
+                this.target[2] + normalized[2] * this.distance,
+            ];
+        }
+        
         // Ricalcola anche gli angoli sferici e i vettori locali dal nuovo punto.
         this.theta = Math.atan2(toTarget[0], toTarget[2]);
         this.phi = Math.acos(Math.max(-1, Math.min(1, toTarget[1] / this.distance)));

@@ -32,7 +32,7 @@ class Forest {
         this.bumpMapStrength = 3.5; 
         this.specularMappingEnabled = true; 
         this.alphaClippingEnabled = true;
-        this.alphaThreshold = 0.5;
+        this.alphaThreshold = 0.9;
     }
 
     toggleBumpMapping() {
@@ -417,8 +417,10 @@ class Forest {
                 const useSpecValue = (renderable.useSpecularMap && this.specularMappingEnabled) ? 1 : 0;
                 gl.uniform1i(uniformLocations.useSpecularMap, useSpecValue); // Abilita/disabilita il specular mapping (controlla toggle dell'utente).
 
-                gl.uniform1i(uniformLocations.alphaClip, renderable.alphaClip ? 1 : 0); // Abilita/disabilita alpha clipping (per le foglie trasparenti).
-                gl.uniform1f(uniformLocations.alphaThreshold, renderable.alphaThreshold ?? 0.5); 
+                const useAlphaClip = this.alphaClippingEnabled ? 1 : 0;
+
+                gl.uniform1i(uniformLocations.alphaClip, useAlphaClip); 
+                gl.uniform1f(uniformLocations.alphaThreshold, this.alphaThreshold); 
 
                 if (renderable.texture) {
                     gl.activeTexture(gl.TEXTURE0);

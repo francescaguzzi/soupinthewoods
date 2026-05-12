@@ -372,7 +372,6 @@ function buildModel(gl, modelData, instanceMatrices, attribLocations) {
 			useTexture: renderable.useTexture,
 			materialName: renderable.materialName,
 			alphaClip: renderable.alphaClip,
-			alphaThreshold: renderable.alphaThreshold,
 			bumpTexture: renderable.bumpTexture,
 			useBumpMap: renderable.useBumpMap,
 			bumpMapSize: renderable.bumpMapSize,
@@ -471,7 +470,6 @@ async function loadOBJModel(gl, objUrl, options = {}) {
 			specularTexture,
 			useSpecularMap: Boolean(specularTexture),
 			alphaClip: shouldAlphaClip(material),
-			alphaThreshold: 0.9,
 		});
 	}
 
