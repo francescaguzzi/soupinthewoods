@@ -1,13 +1,21 @@
 (async function main() {
-    // Recupera il canvas dalla pagina.
+
     const canvas = document.getElementById('canvas');
     if (!canvas) {
-        throw new Error('Canvas non trovato.');
+        throw new Error('Canvas not found.');
     }
+
+    setLoadingProgress(10, 'Initializing...');
 
     const camera = new Camera([-10, 15, 15], [0, 2, 0], [0, 1, 0]);
     const scene = new Scene(canvas, camera);
+
+    setLoadingProgress(30, 'Loading models...');
+
     await scene.init();
+
+    setLoadingProgress(100, 'Building interface...');
+    hideLoadingScreen();
 
     const ui = new UI();
     const game = new Game(scene, scene.forest, camera, ui);
@@ -30,6 +38,29 @@
     let touchStartY = 0;
     const dragThreshold = 5; // pixels
 
+    // FPS Counter
+    let frameCount = 0;
+    let lastFpsUpdateTime = performance.now();
+    let currentFps = 0;
+
+    /* EVENT LISTENERS FOR UI */
+
+    ui.container.addEventListener('clear-inventory', () => {
+        game.emptyInventory();
+        ui.clear();
+    });
+    ui.container.addEventListener('toggle-bump-mapping', () => { scene.toggleBumpMapping(); });
+    ui.container.addEventListener('toggle-specular-mapping', () => { scene.toggleSpecularMapping(); });
+    ui.container.addEventListener('toggle-alpha-clipping', () => { 
+        const enabled = scene.toggleAlphaClipping();
+        scene.setBlending(enabled); 
+    });
+    ui.container.addEventListener('set-alpha-threshold', (e) => { scene.setAlphaThreshold(e.detail.value); });
+    ui.container.addEventListener('set-bump-strength', (e) => { scene.setBumpMapStrength(e.detail.value); });
+    ui.container.addEventListener('set-fps-visibility', (e) => { ui.setFpsVisibility(e.detail.visible); });
+
+    /* ---------------------- */
+
     // MOUSE EVENTS
     canvas.addEventListener('mousedown', (event) => {
         if (event.button !== 0) return;
@@ -40,47 +71,14 @@
         dragStartY = event.clientY;
     });
 
-    ui.container.addEventListener('clear-inventory', () => {
-        game.emptyInventory();
-        ui.clear();
-    });
-
-    ui.container.addEventListener('toggle-bump-mapping', () => {
-        const enabled = scene.toggleBumpMapping();
-        ui.normalMappingBtn.style.background = enabled ? '#4CAF50' : '#ccc';
-        console.log('Bump Mapping:', enabled ? 'Abilitato' : 'Disabilitato');
-    });
-
-    ui.container.addEventListener('toggle-specular-mapping', () => {
-        const enabled = scene.toggleSpecularMapping();
-        ui.specularMappingBtn.style.background = enabled ? '#4CAF50' : '#ccc';
-        console.log('Specular Mapping:', enabled ? 'Abilitato' : 'Disabilitato');
-    });
-
-    window.addEventListener('keydown', (event) => {
-        if (event.key.toLowerCase() === 'n') {
-            const enabled = scene.toggleBumpMapping();
-            ui.normalMappingBtn.style.background = enabled ? '#4CAF50' : '#ccc';
-            console.log('Bump Mapping:', enabled ? 'Abilitato' : 'Disabilitato');
-        }
-        if (event.key.toLowerCase() === 's') {
-            const enabled = scene.toggleSpecularMapping();
-            ui.specularMappingBtn.style.background = enabled ? '#4CAF50' : '#ccc';
-            console.log('Specular Mapping:', enabled ? 'Abilitato' : 'Disabilitato');
-        }
-    });
-
     window.addEventListener('mouseup', (event) => {
         if (dragging) {
-            // Verifica se c'è stato un drag significativo
             const dragDistance = Math.sqrt(
                 Math.pow(event.clientX - dragStartX, 2) + 
                 Math.pow(event.clientY - dragStartY, 2)
             );
-            
             dragging = false;
-            
-            // Se il drag è stato piccolo, trattalo come click
+
             if (dragDistance < dragThreshold && event.button === 0) {
                 game.onCanvasClick(event.clientX, event.clientY, canvas);
             }
@@ -161,6 +159,8 @@
 
     window.addEventListener('resize', () => scene.resize());
 
+    /* ----------------------- */
+
     const fireAnim = {
         baseScale: 1.0,
         amplitude: 0.12,
@@ -172,7 +172,6 @@
 
     function frame(currentTime) {
         
-        // Aggiorna l'animazione del mouse (supporta bounce e nod)
         const deltaTime = lastFrameTime ? currentTime - lastFrameTime : 0;
         lastFrameTime = currentTime;
         
@@ -202,8 +201,33 @@
         /* ------------------------------------------ */
 
         scene.render();
+
+        frameCount++;
+        const now = performance.now();
+        if (now - lastFpsUpdateTime >= 500) {
+            currentFps = Math.round((frameCount * 1000) / (now - lastFpsUpdateTime));
+            ui.updateFPS(currentFps);
+            frameCount = 0;
+            lastFpsUpdateTime = now;
+        }
+
         requestAnimationFrame(frame);
     }
 
     requestAnimationFrame(frame);
 })();
+
+function setLoadingProgress(percent, message) {
+    const bar = document.getElementById('loading-bar');
+    const msg = document.getElementById('loading-msg');
+    if (bar) bar.style.width = `${percent}%`;
+    if (msg) msg.textContent = message;
+}
+
+function hideLoadingScreen() {
+    const screen = document.getElementById('loading-screen');
+    if (!screen) return;
+    screen.classList.add('fade-out');
+    // Rimuove dal DOM dopo la transizione
+    screen.addEventListener('transitionend', () => screen.remove(), { once: true });
+}

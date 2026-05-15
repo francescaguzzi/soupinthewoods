@@ -108,7 +108,7 @@
                 T = normalize(T - dot(T, N) * N); 
                 vec3 B = cross(N, T);
                 
-                float bm0 = texture(u_bumpMap, v_uv).r; // Assume la mappa bump è in scala di grigi (usa solo il canale rosso)
+                float bm0 = texture(u_bumpMap, v_uv).r;
                 float bmRight = texture(u_bumpMap, v_uv + vec2(1.0 / u_bumpMapSize.x, 0.0)).r;
                 float bmUp = texture(u_bumpMap, v_uv + vec2(0.0, 1.0 / u_bumpMapSize.y)).r;
 
@@ -185,13 +185,92 @@
 
 </head>
 <body>
+
+    <div id="loading-screen">
+        <div id="loading-box">
+            <p id="loading-title">✦ Soup in the Woods ✦</p>
+            <div id="loading-bar-wrap">
+                <div id="loading-bar"></div>
+            </div>
+            <p id="loading-msg">Loading...</p>
+        </div>
+    </div>
+
+    <!-- ========== HOW TO PLAY OVERLAY ========== -->
+
+    <!-- Pulsante in alto a destra per riaprire l'overlay -->
+
+
     <canvas id="canvas"></canvas>
+
+        <button id="btn-help" title="How to Play">?</button>
+
+    <!-- Overlay -->
+    <div id="howto-overlay">
+    <div id="howto-box">
+
+        <div id="howto-header">
+        <span id="howto-title">✦ How to Play ✦</span>
+        <button id="btn-close-howto" title="Close">✕</button>
+        </div>
+
+        <div id="howto-body">
+
+        <div class="howto-section">
+            <img src="assets/ui/2x_17.png" alt="description" class="howto-icon">
+            <div>
+            <div class="howto-label">Collect Mushrooms</div>
+            <div class="howto-text">Click on the mushrooms that appear in the forest to collect them in your backpack.</div>
+            </div>
+        </div>
+
+        <div class="howto-section">
+            <img src="assets/ui/2x_18.png" alt="description" class="howto-icon">
+            <div>
+            <div class="howto-label">Backpack</div>
+            <div class="howto-text">The collected mushrooms appear in the panel at the bottom. You can empty it with the "Empty bag" button.</div>
+            </div>
+        </div>
+
+        <div class="howto-section">
+            <img src="assets/ui/2x_44.png" alt="description" class="howto-icon">
+            <div>
+            <div class="howto-label">Make the Soup</div>
+            <div class="howto-text">Collect at least 3 mushrooms and click on the pan to cook the soup</div>
+            </div>
+        </div>
+
+        <div class="howto-section">
+            <img src="assets/ui/2x_19.png" alt="description" class="howto-icon">
+            <div>
+            <div class="howto-label">See if the critters enjoy it!</div>
+            <div class="howto-text">The mice will come to see if the soup is tasty! Be careful, they are picky eaters!</div>
+            </div>
+        </div>
+
+        </div>
+
+        <button id="btn-start">Start</button>
+
+    </div>
+    </div>
+
+    <!-- Backpack UI -->
+    <div id="ui-container">
+        <div id="inventory">
+            <div id="inventory-slots"></div>
+            <button id="btn-clear">Empty Bag</button>
+        </div>
+    </div>
+
+    <div id="fps-counter" style="display: none; position: fixed; bottom: 10px; left: 10px; color: rgb(255, 255, 255); font-family: monospace; font-size: 12px; background: rgba(0,0,0,0.7); padding: 6px 10px; border-radius: 4px; z-index: 1000;">FPS: 0</div>
 
     <script src="lib/gl-matrix.js"></script>
     <script src="lib/glm_utils.js"></script>
     <script src="lib/m4.js"></script>
     <script src="lib/webgl-utils.js"></script>
     <script src="lib/mesh_utils.js"></script>
+    <script src="lib/dat.gui.js"></script>
     <script src="js/camera.js"></script>
     <script src="js/utilities.js"></script>
     <script src="js/light.js"></script>

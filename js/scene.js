@@ -42,6 +42,14 @@ class Scene {
             this.forest.setAlphaThreshold(threshold);
     }
 
+    setBlending(enabled) {
+        if (enabled) {
+            this.gl.enable(this.gl.BLEND);
+        } else {
+            this.gl.disable(this.gl.BLEND);
+        }
+    }
+
     /* ------------------------- */
 
     async init() {
