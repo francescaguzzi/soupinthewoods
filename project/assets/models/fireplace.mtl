@@ -1,0 +1,65 @@
+# Blender 5.1.1 MTL File: 'texelwoods-assets.blend'
+# www.blender.org
+
+newmtl Fire
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd FireColor.jpeg
+map_Ke FireColor.jpeg
+
+newmtl Metal
+Ns 250.000000
+Ka 0.593434 0.593434 0.593434
+Ke 0.000000 0.000000 0.000000
+Ni 5
+d 1.000000
+illum 3
+map_Kd MetalColor.jpeg
+map_Ks MetalSpecular.jpg
+map_Bump -bm 1.000000 MetalBump.png
+
+newmtl Rocks
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 2
+map_Kd RockColor.jpeg
+map_Ks RockSpecular.jpg
+map_Bump -bm 1.000000 RockBump.png
+
+newmtl Soup
+Ns 761.652893
+Ka 1.000000 1.000000 1.000000
+Ks 0.200000 0.200000 0.200000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 2
+map_Kd soup.png
+
+newmtl Wood
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 2
+map_Kd WoodColor.jpeg
+map_Ks WoodSpecular.jpg
+map_Bump -bm 1.000000 WoodBump.png
+
+newmtl WoodEnd
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 2
+map_Kd TreeEndColor.jpeg
+map_Ks WoodEndSpecular.jpg

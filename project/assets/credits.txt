@@ -1,0 +1,13 @@
+Credits for all the assets used in the scene. 
+
+3D assets found on SketchFab:
+- Trees and bush: JABAMI Production
+- Campfire and ground: Rafael Rodrigues
+- Big rock: Stylized Station 
+- Mushrooms: soidev 
+- Mice: Maria Beatriz
+
+Icons: https://misnina.itch.io/stardew-valley-item-repixel
+
+Generator used for bump maps and speculars: https://cpetry.github.io/NormalMap-Online/
+
