@@ -18,8 +18,6 @@ class UI {
         this.btnClose  = document.getElementById('btn-close-howto');
         this.btnStart  = document.getElementById('btn-start');
 
-
-
         this._bindEvents();
         this._setupGraphicsGUI();
     }

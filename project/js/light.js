@@ -19,7 +19,7 @@ window.Light = (() => {
 
 	function setFireIntensity(newIntensity) {
 		fireLight.intensity = newIntensity;
-		fireLight.ambient = Math.min(1.0, newIntensity / 5); // L'ambient aumenta con l'intensità, ma è limitato a 1.0
+		fireLight.ambient = Math.min(1.5, newIntensity / 5); // ambient limit at 1.5
 	}
 
 	function getMoonLight() {

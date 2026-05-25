@@ -21,14 +21,14 @@
 
     hideLoadingScreen();
 
-    // Abilita profondità e blending per le parti trasparenti.
+    // Enable depth and blending for transparent parts
     const gl = scene.gl;
     gl.enable(gl.DEPTH_TEST);
     gl.enable(gl.BLEND);
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); // Blending standard per trasparenza
-    gl.disable(gl.CULL_FACE); // Disabilita culling per vedere le foglie da entrambi i lati
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); // Standard blending for transparency
+    gl.disable(gl.CULL_FACE); // Disable culling to see leaves from both sides
 
-    // Stato input per orbit della camera.
+    // Input state for camera orbiting
     let dragging = false;
     let lastX = 0;
     let lastY = 0;
@@ -99,13 +99,13 @@
 
     // TOUCH EVENTS
     canvas.addEventListener('touchstart', (event) => {
-        if (event.touches.length === 1) { // un dito in movimento: orbita
+        if (event.touches.length === 1) { // one finger: orbit
             dragging = true;
             lastX = event.touches[0].clientX;
             lastY = event.touches[0].clientY;
             touchStartX = event.touches[0].clientX;
             touchStartY = event.touches[0].clientY;
-        } else if (event.touches.length === 2) { // due dita in movimento: zoom
+        } else if (event.touches.length === 2) { // two fingers: zoom
             dragging = false;
             const dx = event.touches[0].clientX - event.touches[1].clientX;
             const dy = event.touches[0].clientY - event.touches[1].clientY;
@@ -162,7 +162,7 @@
 
     /* ----------------------- */
 
-    const fireAnim = {
+    const fireAnim = { // Parameters for fire animation
         baseScale: 1.0,
         amplitude: 0.12,
         speed: 2.0,
@@ -178,23 +178,23 @@
         
         scene.forest.updateMouseAnimation(deltaTime);
 
-        // Animazione del fuoco
-        // Oscillazione di base (sin) fluida, combinata con noise per imitare il crepitio del fuoco
+        // Fire animation
+        // Fluid base oscillation (sin), combined with noise to mimic fire crackling
         /* ------------------------------------------ */
         
         const t = currentTime/ 1000;
         
         const baseSin = Math.sin(t * fireAnim.speed);
         const highFreq = Math.sin(t * fireAnim.speed * 4.3) * 0.15;
-        const noise = Math.sin((t * 3.7) * 100) * 0.08 +
-                      Math.sin((t * 5.3) * 80) * 0.05;
-        
-        const scale = fireAnim.baseScale + 
-                      (baseSin + highFreq + noise) * fireAnim.amplitude;
+        // Multiple noise frequencies for more natural effect
+        const noise = Math.sin((t * 3.7) * 100) * 0.08 + Math.sin((t * 5.3) * 80) * 0.05; 
+    
+        const scale = fireAnim.baseScale + (baseSin + highFreq + noise) * fireAnim.amplitude;
         scene.forest.setFireScale(Math.max(0.1, scale));
 
+        // modulate fire intensity and ambient with the scale variation to enhance the effect
         if (typeof Light !== 'undefined' && Light.setFireIntensity) {
-            const scaleVariation = scale - fireAnim.baseScale; // Intensità proporzionale alla scala del fuoco
+            const scaleVariation = scale - fireAnim.baseScale; 
             const intensity = fireAnim.baseIntensity * (1 + scaleVariation);
             Light.setFireIntensity(intensity);
         }
@@ -203,7 +203,7 @@
 
         scene.render();
 
-        frameCount++;
+        frameCount++; // FPS calculation
         const now = performance.now();
         if (now - lastFpsUpdateTime >= 500) {
             currentFps = Math.round((frameCount * 1000) / (now - lastFpsUpdateTime));
@@ -229,6 +229,5 @@ function hideLoadingScreen() {
     const screen = document.getElementById('loading-screen');
     if (!screen) return;
     screen.classList.add('fade-out');
-    // Rimuove dal DOM dopo la transizione
-    screen.addEventListener('transitionend', () => screen.remove(), { once: true });
+    screen.addEventListener('transitionend', () => screen.remove(), { once: true }); // Remove from DOM after transition
 }

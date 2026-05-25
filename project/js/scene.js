@@ -7,7 +7,7 @@ class Scene {
 
         this.gl = canvas.getContext('webgl2');
         if (!this.gl) {
-            throw new Error('WebGL2 non supportato dal browser.');
+            throw new Error('WebGL2 not supported by browser.');
         }
 
         this.program = null;
@@ -58,6 +58,7 @@ class Scene {
 
         /* ---------------------------------- */
 
+        // Skybox setup before anything else to render it in the background
         this.skyboxProgram = webglUtils.createProgramFromScripts(gl, ['skybox-vertex', 'skybox-fragment']);
         this.skyboxUniformLocations = {
             skybox: gl.getUniformLocation(this.skyboxProgram, 'u_skybox'),
@@ -86,7 +87,6 @@ class Scene {
 
         this.program = webglUtils.createProgramFromScripts(gl, ['vertex-shader', 'fragment-shader']);
 
-        // Legge le location degli attributi una sola volta.
         this.attribLocations = {
             position: gl.getAttribLocation(this.program, 'a_position'),
             uv: gl.getAttribLocation(this.program, 'a_uv'),
@@ -95,35 +95,34 @@ class Scene {
             tangent: gl.getAttribLocation(this.program, 'a_tangent'), 
         };
 
-        // Legge le uniform una sola volta per evitare lookup ogni frame.
         this.uniformLocations = {
             view: gl.getUniformLocation(this.program, 'u_view'),
             projection: gl.getUniformLocation(this.program, 'u_projection'),
             color: gl.getUniformLocation(this.program, 'u_color'),
             useTexture: gl.getUniformLocation(this.program, 'u_useTexture'),
             textureSampler: gl.getUniformLocation(this.program, 'u_texture'),
+
             alphaClip: gl.getUniformLocation(this.program, 'u_alphaClip'),
             alphaThreshold: gl.getUniformLocation(this.program, 'u_alphaThreshold'),
-            // bump mapping
+
             useBumpMap: gl.getUniformLocation(this.program, 'u_useBumpMap'),
             bumpMapSampler: gl.getUniformLocation(this.program, 'u_bumpMap'),
             bumpMapSize: gl.getUniformLocation(this.program, 'u_bumpMapSize'),
             bumpMapStrength: gl.getUniformLocation(this.program, 'u_bumpMapStrength'),
-            // specular mapping
+
             useSpecularMap: gl.getUniformLocation(this.program, 'u_useSpecularMap'),
             specularMapSampler: gl.getUniformLocation(this.program, 'u_specularMap'),
             specularColor: gl.getUniformLocation(this.program, 'u_specularColor'),
 
-            // Fire light uniforms
             firePosition: gl.getUniformLocation(this.program, 'u_firePosition'),
             fireColor: gl.getUniformLocation(this.program, 'u_fireColor'),
             fireIntensity: gl.getUniformLocation(this.program, 'u_fireIntensity'),
-            // Moon light uniforms
+
             moonDirection: gl.getUniformLocation(this.program, 'u_moonDirection'),
             moonColor: gl.getUniformLocation(this.program, 'u_moonColor'),
             moonIntensity: gl.getUniformLocation(this.program, 'u_moonIntensity'),
-            // Camera position for specular
-            viewPosition: gl.getUniformLocation(this.program, 'u_viewPosition'),
+            // Camera position for specular highlights
+            viewPosition: gl.getUniformLocation(this.program, 'u_viewPosition'), 
         };
 
         this.forest = new Forest(gl, this.attribLocations, this.uniformLocations);
@@ -133,7 +132,6 @@ class Scene {
     }
 
     resize() {
-        // Rende il canvas coerente con la dimensione del display.
         webglUtils.resizeCanvasToDisplaySize(this.canvas);
         this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
     }
@@ -142,20 +140,18 @@ class Scene {
         const gl = this.gl;
 
         this.resize();
-        // gl.clearColor(12/255, 8/255, 5/255, 1); 
-        gl.clearColor(0, 0, 0, 1); // Colore di sfondo più scuro per evidenziare il fuoco
+        gl.clearColor(0, 0, 0, 1); 
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-        // Matrice di proiezione prospettica classica.
         const aspect = this.canvas.width / this.canvas.height;
         const projectionMatrix = m4.perspective(Math.PI / 3, aspect, 0.1, 200.0);
-        this.projectionMatrix = projectionMatrix; // Salva per uso esterno (raycasting)
+        this.projectionMatrix = projectionMatrix; // save for external use (raycasting)
 
-        // View matrix ottenuta dalla camera istanziata.
         const viewMatrix = this.camera.getViewMatrix();
 
         /* ---------------------------------- */
 
+        // Prepare viewDirectionProjectionInverse for skybox shader
         const viewDirectionMatrix = [...viewMatrix];
         viewDirectionMatrix[12] = 0;
         viewDirectionMatrix[13] = 0;
@@ -165,7 +161,7 @@ class Scene {
             m4.multiply(projectionMatrix, viewDirectionMatrix)
         );
 
-        // Skybox prima di tutto — depthFunc LEQUAL come fa il tuo prof
+        // depthFunc LEQUAL for skybox to render behind everything else
         gl.depthFunc(gl.LEQUAL);
         gl.useProgram(this.skyboxProgram);
         gl.bindVertexArray(this.skyboxVAO);
@@ -178,12 +174,10 @@ class Scene {
 
         /* ---------------------------------- */
 
-        // Ripristina depth test standard e renderizza la scena
+        // switch back to LESS for the rest of the scene
         gl.depthFunc(gl.LESS);
-        // Usa il programma e lascia alla foresta il rendering delle istanze.
-        gl.useProgram(this.program);
+        gl.useProgram(this.program); // forest.js handles the rendering of the models
 
-        // Imposta le uniform della luce del fuoco
         if (typeof Light !== 'undefined' && Light.getFireLight) {
             const fire = Light.getFireLight();
             if (fire) {
@@ -193,7 +187,6 @@ class Scene {
             }
         }
 
-        // Imposta le uniform della luce lunare
         if (typeof Light !== 'undefined' && Light.getMoonLight) {
             const moon = Light.getMoonLight();
             if (moon) {
@@ -203,7 +196,7 @@ class Scene {
             }
         }
 
-        // Imposta la posizione della camera per il calcolo speculare
+        // for specular highlights, we need the camera position in world space
         if (this.uniformLocations.viewPosition && this.camera.getPosition) {
             gl.uniform3fv(this.uniformLocations.viewPosition, this.camera.getPosition());
         }

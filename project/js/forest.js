@@ -4,9 +4,9 @@ class Forest {
 
         this.gl = gl;
         this.attribLocations = attribLocations; // vertex attribute (position, uv, instanceMatrix).
-        this.uniformLocations = uniformLocations; // (view, projection, color, texture, alphaClip, etc).
+        this.uniformLocations = uniformLocations; // (view, projection, color, texture, alphaClip, etc)
 
-        this.models = []; // Array di modelli, con renderables raggruppati per materiale.
+        this.models = []; // models array with renderable grouped by material
         
         this.groundTopY = 0; 
 
@@ -22,8 +22,8 @@ class Forest {
         this.RESPAWN_THRESHOLD = 2; 
 
         this.mouseAnimation = null;
-        this.mouseAnimationProgress = 0; // Progresso 0-1
-        this.mouseAnimationDuration = 800; // Durata dell'animazione in ms
+        this.mouseAnimationProgress = 0; // 0-1 progress for current animation
+        this.mouseAnimationDuration = 800; // ms
         this.mouseMatrices = null;
         this.originalMouseMatrices = null; 
         this.mouseModel = null;
@@ -87,11 +87,14 @@ class Forest {
         });
     }
 
+    // placeholder matrixes are used to avoid creating/destroying VAO everytime
+    // when a mushroom is collected, we mark it as collected and respawn if needed, 
+    // but we only update the instance buffer with new matrixes, without changing 
+    // the VAO or instance count (we just set instance count to MAX_MUSHROOMS and 
+    // use a hidden matrix for collected mushrooms)
     _initMushroomModels() {
-        // Crea un modello per ogni tipo di mesh con MAX_MUSHROOMS istanze placeholder
-        // Matrici di scala zero per "nascondere" le istanze inutilizzate
-        const hiddenMatrix = m4.scaling(0, 0, 0);
-        const placeholderMatrices = Array(this.MAX_MUSHROOMS).fill(hiddenMatrix);
+        const hiddenMatrix = m4.scaling(0, 0, 0); 
+        const placeholderMatrices = Array(this.MAX_MUSHROOMS).fill(hiddenMatrix); 
 
         for (let i = 0; i < 3; i++) {
             const model = buildModel(this.gl, this.mushroomData[i], placeholderMatrices, this.attribLocations);
@@ -99,8 +102,6 @@ class Forest {
             this.mushroomModelsByMesh[i] = model;
             this.models.push(model);
         }
-
-        // Carica le matrici reali iniziali
         this._uploadAllMushroomMatrices();
     }
 
@@ -108,31 +109,27 @@ class Forest {
         const gl = this.gl;
         const hiddenMatrix = m4.scaling(0, 0, 0);
 
-        for (let meshIdx = 0; meshIdx < 3; meshIdx++) {
+        for (let meshIdx = 0; meshIdx < 3; meshIdx++) { // random meshes for mushrooms (3 types)
             const model = this.mushroomModelsByMesh[meshIdx];
             if (!model) continue;
 
-            // Raccoglie le matrici attive per questo tipo di mesh
             const activeMatrices = this.spawnedMushrooms
                 .filter(s => !s.collected && s.meshIdx === meshIdx)
                 .map(s => s.matrix);
 
-            // Riempie fino a MAX_MUSHROOMS con matrici nascoste
             const flat = new Float32Array(this.MAX_MUSHROOMS * 16);
             for (let i = 0; i < this.MAX_MUSHROOMS; i++) {
                 const mat = activeMatrices[i] ?? hiddenMatrix;
                 flat.set(mat, i * 16);
             }
-
-            // Aggiorna il buffer senza ricreare il VAO
-            for (const renderable of model.renderables) {
+            // updates the instance buffer without changing VAO
+            for (const renderable of model.renderables) { 
                 if (!renderable.instanceBuffer) continue;
                 gl.bindBuffer(gl.ARRAY_BUFFER, renderable.instanceBuffer);
                 gl.bufferSubData(gl.ARRAY_BUFFER, 0, flat);
             }
-
-            // Aggiorna instanceCount per non disegnare istanze nascoste inutilmente
-            const activeCount = Math.max(1, activeMatrices.length);
+            // updates instance count to avoid rendering empty buffer, but at least 1 to keep VAO valid
+            const activeCount = Math.max(1, activeMatrices.length); 
             for (const renderable of model.renderables) {
                 renderable.instanceCount = activeCount;
             }
@@ -152,7 +149,7 @@ class Forest {
             for (let i = 0; i < toSpawn; i++) this._spawnMushroom();
         }
 
-        this.spawnedMushrooms = this.spawnedMushrooms.filter(s => !s.collected); // puliamo memoria 
+        this.spawnedMushrooms = this.spawnedMushrooms.filter(s => !s.collected);
         this._uploadAllMushroomMatrices();
         return shroom.meshIdx;
     }
@@ -175,6 +172,8 @@ class Forest {
         this._uploadFireMatrices();
     }
 
+    // Uploads fire instance matrices to GPU buffer with applied scale transformation
+    // it multiplies each fire matrix by the current fireScale to dynamically resize all fire instances
     _uploadFireMatrices() {
         if (!this.fireModel || !this.fireMatrices) return;
         const flat = new Float32Array(this.fireMatrices.length * 16);
@@ -210,12 +209,11 @@ class Forest {
         if (ended) {
             this.mouseAnimation = null;
             this.mouseAnimationProgress = 0;
-            this.mouseMatrices = this.originalMouseMatrices.map(m => [...m]);
+            this.mouseMatrices = this.originalMouseMatrices.map(m => [...m]); // reset to original matrices
         } else {
-            this.mouseMatrices = this._getAnimatedMouseMatrices();
+            // get current animated matrices based on progress and animation type
+            this.mouseMatrices = this._getAnimatedMouseMatrices(); 
         }
-
-        // Aggiorna il buffer solo quando necessario
         this._uploadMouseMatrices();
     }
 
@@ -234,24 +232,24 @@ class Forest {
         if (!this.mouseAnimation) {
             return this.originalMouseMatrices;
         }
+        // progress mapped to 0-2PI for smooth looping
+        const t = this.mouseAnimationProgress * Math.PI * 2; 
 
-        const t = this.mouseAnimationProgress * Math.PI * 2; // progresso da 0 a 2π per due bounce completi
-
-        if (this.mouseAnimation === 'bounce') { // approvazione
+        if (this.mouseAnimation === 'bounce') { // approval
             return this.originalMouseMatrices.map(originalMatrix => {
-                const bounceAmount = Math.abs(Math.sin(t)) * 0.5; // due bounce consecutivi usando abs(sin)
+                const bounceAmount = Math.abs(Math.sin(t)) * 0.5; // abs(sin) for two bounces per cycle
                 const bounceMatrix = m4.translation(0, bounceAmount, 0);
                 return m4.multiply(originalMatrix, bounceMatrix);
             });
-        } else if (this.mouseAnimation === 'nod') { // disapprovazione lieve
+        } else if (this.mouseAnimation === 'nod') { // disapproval
             return this.originalMouseMatrices.map(originalMatrix => {
                 const nodAmount = Math.sin(t * 2) * 0.3; 
                 const nodMatrix = m4.yRotation(nodAmount);
                 return m4.multiply(originalMatrix, nodMatrix);
             });
-        } else if (this.mouseAnimation === 'shake') { // rifiuto
+        } else if (this.mouseAnimation === 'shake') { // disgust
             return this.originalMouseMatrices.map(originalMatrix => {
-                const damping = 1 - this.mouseAnimationProgress; // per smorzare verso la fine dell'animazione
+                const damping = 1 - this.mouseAnimationProgress; // damping effect to gradually reduce shake
                 const shakeAmount = Math.sin(t * 4) * 0.4 * damping; 
                 const shakeMatrix = m4.translation(0, 0, shakeAmount);
                 return m4.multiply(originalMatrix, shakeMatrix);
@@ -285,11 +283,9 @@ class Forest {
         const rockData = await loadOBJModel(gl, 'assets/models/rock.obj', {
             textureBaseDir: 'assets/textures/',
         });
-
         const mouseData = await loadOBJModel(gl, 'assets/models/mouse.obj', {
             textureBaseDir: 'assets/textures/',
         });
-
         const polaroidData = await loadOBJModel(gl, 'assets/models/polaroid.obj', {
             textureBaseDir: 'assets/textures/',
         });
@@ -320,7 +316,6 @@ class Forest {
             m4.multiply(m4.translation(-6, this.groundTopY, -6), m4.multiply(m4.yRotation(0.7), m4.scaling(1.0, 1.0, 1.0))),
             m4.multiply(m4.translation(2.2, this.groundTopY, 7.7), m4.multiply(m4.yRotation(0), m4.scaling(1.0, 1.0, 1.0))),
         ];
-
         const smallTreeMatrices = [
             m4.multiply(m4.translation(6.5, this.groundTopY, -3), m4.multiply(m4.yRotation(15), m4.scaling(1.0, 1.0, 1.0))),
             m4.multiply(m4.translation(1.2, this.groundTopY, -6), m4.multiply(m4.yRotation(0), m4.scaling(1.0, 1.0, 1.0))),
@@ -328,20 +323,17 @@ class Forest {
             m4.multiply(m4.translation(-6.8, this.groundTopY, -0.5), m4.multiply(m4.yRotation(-1), m4.scaling(1.0, 1.0, 1.0))), 
             m4.multiply(m4.translation(-3.5, this.groundTopY, -4), m4.multiply(m4.yRotation(0), m4.scaling(1.0, 1.0, 1.0))),
         ];
-
         const rockMatrices = [
             m4.multiply(m4.translation(7.2, this.groundTopY, -6.7), m4.multiply(m4.yRotation(3.5), m4.scaling(1.0, 1.0, 1.0))),
             m4.multiply(m4.translation(5.4, this.groundTopY, 6.3), m4.multiply(m4.yRotation(30), m4.scaling(0.6, 0.6, 0.6))),
             m4.multiply(m4.translation(-6.6, this.groundTopY, -3.8), m4.multiply(m4.yRotation(0), m4.scaling(0.6, 0.6, 0.6))),
         ];
-
         const bushMatrices = [
             m4.multiply(m4.translation(5, this.groundTopY, -5), m4.multiply(m4.yRotation(-0.5), m4.scaling(1.0, 1.0, 1.0))),
             m4.multiply(m4.translation(5.4, this.groundTopY, 5.2), m4.multiply(m4.yRotation(-3), m4.scaling(1.1, 1.1, 1.1))),
             m4.multiply(m4.translation(-7.2, this.groundTopY, 0), m4.multiply(m4.yRotation(-0.5), m4.scaling(1.0, 1.0, 1.0))),
             m4.multiply(m4.translation(2.5, this.groundTopY, 7.3), m4.multiply(m4.yRotation(1), m4.scaling(0.9, 0.9, 0.9))),
         ];
-
         const mouseMatrices = [
             m4.multiply(m4.translation(2, this.groundTopY, 0.3), m4.multiply(m4.yRotation(0), m4.scaling(1.0, 1.0, 1.0))),
             m4.multiply(m4.translation(-2.5, this.groundTopY, -1), m4.multiply(m4.yRotation(160), m4.scaling(1.0, 1.0, 1.0))),
@@ -351,19 +343,14 @@ class Forest {
         const polaroidMatrices = [
             m4.multiply(
                 m4.translation(-3.25, 1.4, -3.85),  // X, Z, -Y di Blender
-                m4.multiply(
-                    m4.xRotation(degToRad(20)),
-                    m4.multiply(
-                        m4.zRotation(degToRad(-80)), // Y di Blender -> Z di WebGL
-                        m4.yRotation(degToRad(150))   // Z di Blender -> Y di WebGL
-                    )
-                )
-            )
+                m4.multiply(m4.xRotation(degToRad(20)),
+                    m4.multiply(m4.zRotation(degToRad(-80)), // Y di Blender -> Z di WebGL
+                                m4.yRotation(degToRad(150)))))   // Z di Blender -> Y di WebGL
         ];
 
         this.fireMatrices = fireMatrices;
         this.mouseMatrices = mouseMatrices;
-        this.originalMouseMatrices = mouseMatrices.map(m => [...m]); // deep copy per le matrici originali
+        this.originalMouseMatrices = mouseMatrices.map(m => [...m]); // deep copy for animation reset
 
         this.models = [
             buildModel(gl, groundData, groundMatrices, this.attribLocations),
@@ -380,7 +367,7 @@ class Forest {
             this._spawnMushroom();
         }
 
-        this.mushroomModelsByMesh = [null, null, null];
+        this.mushroomModelsByMesh = [null, null, null]; // placeholder for mushroom models indexed by mesh type
         this._initMushroomModels();
     }
 
@@ -388,7 +375,7 @@ class Forest {
 
         const gl = this.gl;
         const { uniformLocations } = this;
-        // Imposta le matrici uniform che vengono usate da TUTTI i vertici
+        // uniform matrices used by all models, so we set them once per frame here before rendering any model
         gl.uniformMatrix4fv(uniformLocations.view, false, viewMatrix);
         gl.uniformMatrix4fv(uniformLocations.projection, false, projectionMatrix);
 
@@ -397,19 +384,13 @@ class Forest {
             const model = this.models[modelIdx];
             for (const renderable of model.renderables) {
 
-                gl.bindVertexArray(renderable.vao);  // Associa il VAO di questo materiale.
-                gl.uniform4fv(uniformLocations.color, [...renderable.color, 1.0]); // Imposta il colore base del materiale (RGB + alpha=1).
-                gl.uniform3fv(uniformLocations.specularColor, renderable.specularColor || [0.5, 0.5, 0.5]); // Imposta il colore speculare del materiale.
-                gl.uniform1i(uniformLocations.useTexture, renderable.useTexture ? 1 : 0); // Abilita/disabilita il campionamento delle texture.
-                
-                gl.uniform1i(uniformLocations.useBumpMap, (renderable.useBumpMap && this.bumpMappingEnabled) ? 1 : 0); // Abilita/disabilita il bump mapping (controlla toggle dell'utente).
-                
-                const useSpecValue = (renderable.useSpecularMap && this.specularMappingEnabled) ? 1 : 0;
-                gl.uniform1i(uniformLocations.useSpecularMap, useSpecValue); // Abilita/disabilita il specular mapping (controlla toggle dell'utente).
-
-                const useAlphaClip = this.alphaClippingEnabled ? 1 : 0;
-
-                gl.uniform1i(uniformLocations.alphaClip, useAlphaClip); 
+                gl.bindVertexArray(renderable.vao);  
+                gl.uniform4fv(uniformLocations.color, [...renderable.color, 1.0]); // base material color
+                gl.uniform3fv(uniformLocations.specularColor, renderable.specularColor || [0.5, 0.5, 0.5]); 
+                gl.uniform1i(uniformLocations.useTexture, renderable.useTexture ? 1 : 0); 
+                gl.uniform1i(uniformLocations.useBumpMap, (renderable.useBumpMap && this.bumpMappingEnabled) ? 1 : 0); 
+                gl.uniform1i(uniformLocations.useSpecularMap, (renderable.useSpecularMap && this.specularMappingEnabled) ? 1 : 0); 
+                gl.uniform1i(uniformLocations.alphaClip, this.alphaClippingEnabled ? 1 : 0); 
                 gl.uniform1f(uniformLocations.alphaThreshold, this.alphaThreshold); 
 
                 if (renderable.texture) {
@@ -420,7 +401,7 @@ class Forest {
                     gl.bindTexture(gl.TEXTURE_2D, null);
                 }
 
-                // Bump mapping - assegnato indipendentemente dalla texture diffusa
+                // Bind bump map on TEXTURE2 and specular map on TEXTURE1 to avoid conflicts (diffuse is on 0)
                 if (renderable.bumpTexture && renderable.useBumpMap && this.bumpMappingEnabled) {
                     gl.activeTexture(gl.TEXTURE2);
                     gl.bindTexture(gl.TEXTURE_2D, renderable.bumpTexture);
@@ -432,7 +413,6 @@ class Forest {
                     gl.bindTexture(gl.TEXTURE_2D, null);
                 }
 
-                // Specular mapping
                 if (renderable.specularTexture && renderable.useSpecularMap && this.specularMappingEnabled) {
                     gl.activeTexture(gl.TEXTURE1);
                     gl.bindTexture(gl.TEXTURE_2D, renderable.specularTexture);
@@ -441,7 +421,8 @@ class Forest {
                     gl.activeTexture(gl.TEXTURE1);
                     gl.bindTexture(gl.TEXTURE_2D, null);
                 }
-                gl.uniform1i(uniformLocations.textureSampler, 0); // Informa il fragment shader su quale sampler leggere la texture.
+                
+                gl.uniform1i(uniformLocations.textureSampler, 0); // diffuse texture always on slot 0
                 gl.drawArraysInstanced(gl.TRIANGLES, 0, renderable.vertexCount, renderable.instanceCount); // Istanced rendering
             }
             gl.bindVertexArray(null); // Pulisci il VAO dopo ogni modello

@@ -4,60 +4,51 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Soup in the Woods</title>
+    <link rel="icon" type="image/x-icon" href="/assets/ui/2x_17.png">
     <link rel="stylesheet" href="lib/normalize.css">
     <link rel="stylesheet" href="lib/dat.gui.css">
     <link rel="stylesheet" href="index.css">
     
     <!-- VERTEX SHADER GENERALE -->
     <script id="vertex-shader" type="x-shader/x-vertex">#version 300 es
-        // Posizione del vertice nel modello.
+
         layout(location = 0) in vec3 a_position;
-        // Coordinate UV del vertice.
         layout(location = 1) in vec2 a_uv;
-        // Matrice per istanza: traduce, ruota e scala ogni copia del modello.
-        layout(location = 2) in mat4 a_instanceMatrix;
-        // Normale del vertice (layout location 6, dopo i 4 attributi della matrice istanza)
+        layout(location = 2) in mat4 a_instanceMatrix; // 4 attributes (layout location 2-5) 
         layout(location = 6) in vec3 a_normal;
-        // Tangente per normal mapping (layout location 7)
         layout(location = 7) in vec3 a_tangent;
 
-        // View matrix fornita dalla camera.
-        uniform mat4 u_view;
-        // Projection matrix prospettica.
+        uniform mat4 u_view; // camera view matrix
         uniform mat4 u_projection;
 
-        // UV passate al fragment shader.
         out vec2 v_uv;
-        // Posizione mondo del vertice (passata al fragment shader per calcolo luce semplice)
-        out vec3 v_worldPos;
-        // Normale mondo del vertice (per calcoli speculari)
-        out vec3 v_normal;
-        out vec3 v_tangent; 
+        out vec3 v_worldPos; // vertex world position for diffuse lighting 
+        out vec3 v_normal; // vertex normal in world space for specular lighting
+        out vec3 v_tangent; // vertex tangent in world space for bump mapping
 
         void main() {
-            // Conserva le UV originali.
+    
             v_uv = a_uv;
-            // Calcola posizione mondo usando la matrice istanza
             vec4 worldPos = a_instanceMatrix * vec4(a_position, 1.0);
-            v_worldPos = worldPos.xyz;
-            // Trasforma la normale in spazio mondo usando mat3 della matrice istanza
+            v_worldPos = worldPos.xyz; 
+
+            // transforms normals and tangents to world space using the upper-left 3x3 of the instance matrix 
             v_normal = normalize(mat3(a_instanceMatrix) * a_normal);
             v_tangent = normalize(mat3(a_instanceMatrix) * a_tangent);
-            // Trasforma il vertice da spazio mondo a clip space.
-            gl_Position = u_projection * u_view * worldPos;
+            
+            gl_Position = u_projection * u_view * worldPos; 
         }
     </script>
 
     <!-- FRAGMENT SHADER GENERALE -->
     <script id="fragment-shader" type="x-shader/x-fragment">#version 300 es
+
         precision mediump float;
-
-        in vec2 v_uv; // UV interpolate tra i vertici.
-
-        in vec3 v_worldPos; // Posizione mondo interpolata dal vertex shader.
-        in vec3 v_normal; // Normale mondo interpolata dal vertex shader.
-        in vec3 v_tangent; // Tangente interpolata dal vertex shader.
-        uniform vec4 u_color; // Colore base del materiale.
+        in vec2 v_uv; 
+        in vec3 v_worldPos; 
+        in vec3 v_normal; 
+        in vec3 v_tangent; 
+        uniform vec4 u_color; // base material color
 
         uniform bool u_useTexture;
         uniform sampler2D u_texture;
@@ -73,23 +64,22 @@
         uniform vec3 u_moonColor;
         uniform float u_moonIntensity;
 
-        uniform vec3 u_viewPosition; // Posizione della fotocamera (worldspace) per calcolo speculare
+        uniform vec3 u_viewPosition; // position of the camera (worldspace) for specular calculation
         
         uniform bool u_useBumpMap;
         uniform sampler2D u_bumpMap;
         uniform vec2 u_bumpMapSize; 
         uniform float u_bumpMapStrength; 
         
-
         uniform bool u_useSpecularMap;
         uniform sampler2D u_specularMap;
-        uniform vec3 u_specularColor; // Colore speculare del materiale (Ks)
+        uniform vec3 u_specularColor; 
 
-        out vec4 outColor; // Colore finale scritto nel framebuffer.
+        out vec4 outColor; // final color output of the fragment shader
 
         void main() {
             
-            vec4 color = u_color; // Parte dal colore del materiale.
+            vec4 color = u_color; 
             if (u_useTexture) {
                 vec4 texColor = texture(u_texture, v_uv);
                 color *= texColor;
@@ -99,11 +89,9 @@
                 discard;
             }
 
-            // Vettori necessari per illuminazione Phong
-            vec3 N = normalize(v_normal);
+            vec3 N = normalize(v_normal); // PHONG SHADING
 
-            // BUMP MAPPING
-            if (u_useBumpMap) {
+            if (u_useBumpMap) { // BUMP MAPPING
                 vec3 T = normalize(v_tangent);
                 T = normalize(T - dot(T, N) * N); 
                 vec3 B = cross(N, T);
@@ -117,38 +105,41 @@
                 N = normalize(N + bumpVector * u_bumpMapStrength);
             }
 
-            vec3 V = normalize(u_viewPosition - v_worldPos);
+            vec3 V = normalize(u_viewPosition - v_worldPos); 
 
-            // ========== FUOCO (Luce puntiforme) ==========
+            // ===== FIRE (Point light with attenuation and Lambertian wrap) =====
             float dist_fire = distance(v_worldPos, u_firePosition);
             float brightness_fire = u_fireIntensity / (1.0 + 0.08 * dist_fire * dist_fire);
             
+            // Lambertian wrap means that even surfaces facing away from the light get some diffuse 
+            // contribution, to simulate the effect of light subsurface scattering in the air around the fire
+            
             vec3 L_fire = normalize(u_firePosition - v_worldPos);
-            float lambertian_fire = max(dot(N, L_fire), 0.0);
-            float wrappedLambertian_fire = lambertian_fire * 0.7 + 0.3;
-            vec3 diffuseLight_fire = u_fireColor * brightness_fire * wrappedLambertian_fire * color.rgb;
+            float lambertian_fire = max(dot(N, L_fire), 0.0); 
 
-            // Sampla la specular map (se abilitata)
+            float wrap = 0.7; // how much to wrap the diffuse term (0 = no wrap, 1 = full wrap)
+            float wrap_diffuse_fire = lambertian_fire * wrap + (1.0 - wrap);
+ 
+            vec3 diffuseLight_fire = u_fireColor * brightness_fire * wrap_diffuse_fire * color.rgb;
+
             vec3 specularMap = u_useSpecularMap ? texture(u_specularMap, v_uv).rgb : vec3(1.0);
 
-            // Specular dal fuoco (Phong)
-            vec3 H_fire = normalize(L_fire + V);
+            vec3 H_fire = normalize(L_fire + V); // halfway vector between light and view direction for Blinn-Phong specular
             float specularIntensity_fire = pow(max(dot(N, H_fire), 0.0), 32.0);
             vec3 specularLight_fire = u_specularColor * u_fireColor * brightness_fire * specularIntensity_fire * 0.4 * lambertian_fire * specularMap;
 
-            // ========== LUNA (Luce direzionale debole) ==========
+            // ========== MOON (Soft directional light) ==========
             vec3 L_moon = normalize(-u_moonDirection); // Inverti direzione
             float lambertian_moon = max(dot(N, L_moon), 0.0);
             vec3 diffuseLight_moon = u_moonColor * u_moonIntensity * lambertian_moon * color.rgb;
 
-            // specular luna
             vec3 H_moon = normalize(L_moon + V);
             float specularIntensity_moon = pow(max(dot(N, H_moon), 0.0), 32.0);
             vec3 specularLight_moon = u_specularColor * u_moonColor * u_moonIntensity * specularIntensity_moon * 0.5 * lambertian_moon * specularMap;
 
-            // vec3 ambient = color.rgb * 0.1;
+            vec3 ambient = color.rgb * 0.001;
 
-            vec3 finalRgb = diffuseLight_fire + specularLight_fire + diffuseLight_moon + specularLight_moon;
+            vec3 finalRgb = ambient + diffuseLight_fire + specularLight_fire + diffuseLight_moon + specularLight_moon;
             finalRgb = clamp(finalRgb, 0.0, 1.0);
             outColor = vec4(finalRgb, color.a);
         }
@@ -176,7 +167,7 @@
             vec4 t = u_viewDirectionProjectionInverse * v_position;
             vec3 dir = normalize(t.xyz / t.w);
             
-            // per sfumare verso il nero all'orizzonte
+            // smoothstep to fade the sky color near the horizon to black
             float horizon = smoothstep(-0.1, 0.3, dir.y);
             vec4 skyColor = texture(u_skybox, dir);
             outColor = vec4(skyColor.rgb * horizon, 1.0);
@@ -195,11 +186,6 @@
             <p id="loading-msg">Loading...</p>
         </div>
     </div>
-
-    <!-- ========== HOW TO PLAY OVERLAY ========== -->
-
-    <!-- Pulsante in alto a destra per riaprire l'overlay -->
-
 
     <canvas id="canvas"></canvas>
 
@@ -236,7 +222,7 @@
             <img src="assets/ui/2x_44.png" alt="description" class="howto-icon">
             <div>
             <div class="howto-label">Make the Soup</div>
-            <div class="howto-text">Collect at least 3 mushrooms and click on the pan to cook the soup</div>
+            <div class="howto-text">Collect at least 3 mushrooms and click on the pan to cook the soup.</div>
             </div>
         </div>
 

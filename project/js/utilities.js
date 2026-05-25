@@ -1,5 +1,5 @@
 // ============================================================================
-// ASSET LOADING UTILITIES - Caricamento risorse da URL
+// ASSET LOADING UTILITIES
 // ============================================================================
 
 async function loadTextResource(url) {
@@ -32,10 +32,10 @@ async function loadImageResource(url) {
 }
 
 // ============================================================================
-// TEXTURE MANAGEMENT - Gestione delle texture WebGL
+// TEXTURE MANAGEMENT 
 // ============================================================================
 
-// Cache globale delle texture già caricate per evitare duplicati.
+// Global texture cache to avoid redundant loads. Maps URL to Promise<Texture>.
 const textureCache = new Map();
 
 function isPowerOfTwo(value) {
@@ -46,9 +46,14 @@ function degToRad(degrees) {
 	return degrees * Math.PI / 180;
 }
 
-// Carica una texture WebGL2 da URL.
-// Crea una texture placeholder bianca e la carica asincronamente.
-// Se la dimensione è potenza di 2, usa mipmapping; altrimenti usa CLAMP_TO_EDGE.
+/**
+ * Function to load a texture from a URL, with caching and proper WebGL setup.
+ * Binds a placeholder white texture immediately, then updates it when the image loads.
+ * If the image is a power of two, generates mipmaps for better scaling; otherwise, sets clamping and linear filtering.
+ * @param {*} gl WebGL context
+ * @param {*} url Texture URL
+ * @returns WebGLTexture object wrapped in a Promise that resolves when the texture is fully loaded and ready.
+ */
 async function loadTexture(gl, url) {
 	if (!url) return null;
 	if (textureCache.has(url)) return textureCache.get(url);
@@ -61,13 +66,12 @@ async function loadTexture(gl, url) {
 
 		const image = await loadImageResource(url);
 		gl.bindTexture(gl.TEXTURE_2D, texture);
-		gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true); // Capovolgi l'asse Y (necessario perché le immagini web sono origin-top-left)
+		gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true); 
 		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
-		// Se l'immagine è potenza di 2, usa mipmapping per qualità migliore
+
 		if (isPowerOfTwo(image.width) && isPowerOfTwo(image.height)) {
 			gl.generateMipmap(gl.TEXTURE_2D);
 		} else {
-			// Altrimenti usa campionamento lineare e clipping ai bordi
 			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
 			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
@@ -79,7 +83,12 @@ async function loadTexture(gl, url) {
 	return promise;
 }
 
-// Cubemap loading per skybox
+/**
+ * Function to load a skybox texture from an image URL to repeat on all faces of the cubemap.
+ * @param {*} gl WebGL context
+ * @param {*} url Texture URL
+ * @returns WebGLTexture object wrapped in a Promise that resolves when the texture is fully loaded and ready.
+ */
 async function loadCubemap(gl, url) {
     const texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_CUBE_MAP, texture);
@@ -98,15 +107,20 @@ async function loadCubemap(gl, url) {
         gl.texImage2D(face, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
     }
 
-    gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
+    gl.generateMipmap(gl.TEXTURE_CUBE_MAP); 
     gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
     return texture;
 }
 
 // ============================================================================
-// MESH BOUNDING BOX UTILITIES 
+// MESH BOUNDING BOX UTILITIES - Used for raycasting and click detection
 // ============================================================================
 
+/**
+ * Computes the bounding sphere for a given mesh.
+ * @param {*} mesh Mesh object
+ * @returns {Object} An object containing the center and radius of the bounding sphere.
+ */
 function computeBoundingSphere(mesh) {
     let minX = Infinity, minY = Infinity, minZ = Infinity;
     let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
@@ -127,10 +141,18 @@ function computeBoundingSphere(mesh) {
     return { center, radius };
 }
 
+/**
+ * Checks if a ray intersects with a sphere.
+ * @param {*} rayOrigin Origin of the ray.
+ * @param {*} rayDir Direction of the ray.
+ * @param {*} sphere Sphere to check intersection with.
+ * @param {*} worldMatrix World matrix for transforming the sphere.
+ * @returns {boolean} True if the ray intersects the sphere, false otherwise.
+ */
 function raySphereIntersect(rayOrigin, rayDir, sphere, worldMatrix) {
    
     const worldCenter = m4.transformPoint(worldMatrix, sphere.center);
-    // Stima il raggio in world space (approssimazione valida per scale uniformi)
+	// Assume uniform scaling and extract the scale factor from the world matrix to adjust the radius accordingly.
     const scale = Math.hypot(worldMatrix[0], worldMatrix[1], worldMatrix[2]);
     const worldRadius = sphere.radius * scale;
 
@@ -143,15 +165,14 @@ function raySphereIntersect(rayOrigin, rayDir, sphere, worldMatrix) {
     const c = oc[0]*oc[0] + oc[1]*oc[1] + oc[2]*oc[2] - worldRadius * worldRadius;
     const discriminant = b * b - c;
     
-    return discriminant >= 0; // true = colpito
+    return discriminant >= 0; 
 }
 
 // ============================================================================
-// MATERIAL PROPERTIES - Estrazione proprietà materiali da MTL
+// MATERIAL PROPERTIES 
 // ============================================================================
 
-// Estrae il colore diffuse (Kd) o ambient (Ka) di un materiale MTL.
-// Ritorna [R, G, B] normalizzati tra 0 e 1.
+// Extracts the color of a material based on its type.
 function materialColor(material, type) {
 	if (type === 'diffuse') {
 		const kd = material?.parameter?.get('Kd');
@@ -159,14 +180,14 @@ function materialColor(material, type) {
 		const source = kd || ka || [1, 1, 1];
 		return [source[0] ?? 1, source[1] ?? 1, source[2] ?? 1];
 	}
-
 	if (type === 'specular') {
 		const ks = material?.parameter?.get('Ks');
-		const source = ks || [0.5, 0.5, 0.5]; // Default grigio medio se non specificato
+		const source = ks || [0.5, 0.5, 0.5]; // gray default for specular
 		return [source[0] ?? 0.5, source[1] ?? 0.5, source[2] ?? 0.5];
 	}
 }
 
+// Extracts the texture path of a material based on its type.
 function materialTexturePath(material, type) {
 	if (type === 'diffuse') 
 		return material?.parameter?.get('map_Kd') || material?.parameter?.get('map_d') || material?.parameter?.get('map_Ke') || null;
@@ -178,6 +199,7 @@ function materialTexturePath(material, type) {
 		return material?.parameter?.get('map_Ks') || null;
 }
 
+// Extracts bump map paths from MTL text and assigns them to the corresponding materials.
 async function extractBumpMaps(mtlText, mesh) {
     const lines = mtlText.split('\n');
     let currentMaterial = null;
@@ -201,26 +223,32 @@ function shouldAlphaClip(material) {
 }
 
 // ============================================================================
-// GEOMETRY EXTRACTION - Conversione mesh in geometria GPU-ready
+// GEOMETRY EXTRACTION - Converts mesh data to flat arrays for WebGL buffers
 // ============================================================================
 
-// Estrae la geometria da una mesh OBJ filtrando solo su certi indici materiale.
-// Ritorna {positions: Float32Array, uvs: Float32Array, vertexCount: number}.
-// Triangola automaticamente i poligoni con più di 3 vertici.
+/**
+ * Converts mesh data to flat arrays for WebGL buffers. Optionally filters faces by allowed material
+ * indices and triangulates polygons with more than 3 vertices. Calculates tangents for bump mapping.
+ * @param {*} mesh The mesh object.
+ * @param {*} allowedMaterialIndices If provided, only faces with these material indices will be included in the output. If null, all faces are included.
+ * @returns {Object} An object containing the geometry data (positions, uvs, normals, tangents) and vertex count.
+ */
 function meshToGeometry(mesh, allowedMaterialIndices = null) {
 	const positions = [];
 	const uvs = [];
 	const normals = [];
 	const tangents = [];
 
+	// Creating a set for faster lookup if allowedMaterialIndices is provided
+	// useful for large meshes with many faces and materials, to avoid multiple checks for each face against the allowed materials.
 	const materialSet = allowedMaterialIndices ? new Set(allowedMaterialIndices) : null;
-
+	
 	for (let i = 1; i <= mesh.nface; i += 1) {
 		const face = mesh.face[i];
 		if (!face || face.n_v_e < 3) continue;
 
 		if (materialSet && !materialSet.has(face.material ?? 0)) continue;
-		// Triangola il poligono in fan (v0-v1-v2, v0-v2-v3, v0-v3-v4, ...)
+		
 		for (let t = 1; t < face.n_v_e - 1; t += 1) {
 			const vertexIndices = [0, t, t + 1];
 			const vertexData = vertexIndices.map(idx => {
@@ -231,8 +259,7 @@ function meshToGeometry(mesh, allowedMaterialIndices = null) {
 					uv: [tc ? tc.u : 0, tc ? tc.v : 0],
 				};
 			});
-
-			// Calcolo tangenti per bump mapping 
+			// tangent calculation for bump mapping
 			const e1 = m4.subtractVectors(vertexData[1].pos, vertexData[0].pos, []);
 			const e2 = m4.subtractVectors(vertexData[2].pos, vertexData[0].pos, []);
 			const du1 = vertexData[1].uv[0] - vertexData[0].uv[0];
@@ -247,8 +274,9 @@ function meshToGeometry(mesh, allowedMaterialIndices = null) {
 				f * (dv2 * e1[0] - dv1 * e2[0]),
 				f * (dv2 * e1[1] - dv1 * e2[1]),
 				f * (dv2 * e1[2] - dv1 * e2[2]),
-			]; // normalizzazione la fa lo shader 
-			
+			]; 
+			m4.normalize(tangent, tangent);
+
 			for (let j = 0; j < 3; j++) {
 				const idx = vertexIndices[j];
 				positions.push(...vertexData[j].pos);
@@ -259,7 +287,7 @@ function meshToGeometry(mesh, allowedMaterialIndices = null) {
 					normal ? normal.i : 0,
 					normal ? normal.j : 1,
 					normal ? normal.k : 0
-				);
+				); // If the mesh doesn't have normals, we default to (0, 1, 0) 
 
 				tangents.push(tangent[0], tangent[1], tangent[2]);
 			}
@@ -276,15 +304,18 @@ function meshToGeometry(mesh, allowedMaterialIndices = null) {
 }
 
 // ============================================================================
-// INSTANCED RENDERING SETUP - Preparazione VAO per WebGL2 instancing
+// INSTANCED RENDERING SETUP 
 // ============================================================================
 
-// Crea un VAO configurato per il rendering instanced.
-// Setup:
-// - VBO per posizioni (location 0)
-// - VBO per UV (location 1)
-// - VBO/divisor per matrici istanza come 4 vec4 (locations 2-5)
-// Ritorna {vao, vertexCount, instanceCount}.
+/**
+ * Creates an instanced model for rendering. Sets up VAO and VBOs for vertex attributes and instance matrices.
+ * VBO for positions is bound to location 0, UVs to location 1, and instance matrices are sent as 4 vec4 attributes to locations 2-5 with divisor for instancing.
+ * @param {*} gl WebGL context
+ * @param {*} geometry Geometry data containing positions, uvs, normals, tangents, and vertex count.
+ * @param {*} attribLocations An object mapping attribute names to their locations in the shader program 
+ * @param {*} instanceMatrices VAO, vertex count, and instance count for rendering. 
+ * @returns 
+ */
 function createInstancedModel(gl, geometry, attribLocations, instanceMatrices) {
 	const vao = gl.createVertexArray();
 	gl.bindVertexArray(vao);
@@ -294,14 +325,14 @@ function createInstancedModel(gl, geometry, attribLocations, instanceMatrices) {
 	gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
 	gl.bufferData(gl.ARRAY_BUFFER, geometry.positions, gl.STATIC_DRAW);
 	gl.enableVertexAttribArray(attribLocations.position);
-	gl.vertexAttribPointer(attribLocations.position, 3, gl.FLOAT, false, 0, 0); // Ogni vertice ha 3 float (x, y, z)
+	gl.vertexAttribPointer(attribLocations.position, 3, gl.FLOAT, false, 0, 0); 
 
 	// ========== UV ATTRIBUTE ==========
 	const uvBuffer = gl.createBuffer();
 	gl.bindBuffer(gl.ARRAY_BUFFER, uvBuffer);
 	gl.bufferData(gl.ARRAY_BUFFER, geometry.uvs, gl.STATIC_DRAW);
 	gl.enableVertexAttribArray(attribLocations.uv);
-	gl.vertexAttribPointer(attribLocations.uv, 2, gl.FLOAT, false, 0, 0); // Ogni vertice ha 2 float (u, v)
+	gl.vertexAttribPointer(attribLocations.uv, 2, gl.FLOAT, false, 0, 0); 
 
 	// ========== NORMAL ATTRIBUTE ==========
 	if (geometry.normals && attribLocations.normal !== undefined && attribLocations.normal !== -1) {
@@ -309,7 +340,6 @@ function createInstancedModel(gl, geometry, attribLocations, instanceMatrices) {
 		gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
 		gl.bufferData(gl.ARRAY_BUFFER, geometry.normals, gl.STATIC_DRAW);
 		gl.enableVertexAttribArray(attribLocations.normal);
-		// Ogni vertice ha 3 float (x, y, z)
 		gl.vertexAttribPointer(attribLocations.normal, 3, gl.FLOAT, false, 0, 0);
 	}
 
@@ -323,9 +353,9 @@ function createInstancedModel(gl, geometry, attribLocations, instanceMatrices) {
 	}
 
 	// ========== INSTANCE MATRIX ATTRIBUTE ==========
-	const instanceBuffer = gl.createBuffer(); // Una matrice 4x4 occupa 4 attribute locations (ogni riga è un vec4).
+	const instanceBuffer = gl.createBuffer(); // a 4x4 matrix will be sent as 4 vec4 attributes
 	gl.bindBuffer(gl.ARRAY_BUFFER, instanceBuffer);
-	// Flatten tutte le matrici istanza in un unico array Float32
+	// flatten the array of matrices into a single Float32Array for bufferData
 	const flatMatrices = new Float32Array((instanceMatrices.length || 1) * 16);
 	if (instanceMatrices.length === 0) {
 		flatMatrices.set(m4.identity(), 0);
@@ -336,15 +366,14 @@ function createInstancedModel(gl, geometry, attribLocations, instanceMatrices) {
 	}
 	gl.bufferData(gl.ARRAY_BUFFER, flatMatrices, gl.STATIC_DRAW);
 
-	// Configura i 4 attribute per la matrice istanza
+	// Each column of the matrix is sent as a separate attribute (vec4), so we need to set up 4 attributes for the instance matrix.
 	const baseLoc = attribLocations.instanceMatrix;
 	for (let i = 0; i < 4; i += 1) {
 		const loc = baseLoc + i;
 		gl.enableVertexAttribArray(loc);
-		gl.vertexAttribPointer(loc, 4, gl.FLOAT, false, 64, i * 16); // Ogni riga della matrice: 4 float offset di i*16 bytes
-		gl.vertexAttribDivisor(loc, 1); // Divisor = 1 significa che questo attribute avanza di 1 per ogni istanza
+		gl.vertexAttribPointer(loc, 4, gl.FLOAT, false, 64, i * 16); // 64 bytes per matrix, offset by column
+		gl.vertexAttribDivisor(loc, 1); // This tells WebGL to advance to the next instance matrix after each instance, rather than each vertex.
 	}
-
 	gl.bindVertexArray(null);
 	gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
@@ -356,14 +385,26 @@ function createInstancedModel(gl, geometry, attribLocations, instanceMatrices) {
 	};
 }
 
+/**
+ * Builds a model for instanced rendering. For each renderable in the model data, it creates a VAO with the geometry 
+ * and instance matrices, and assembles an object containing all necessary information for rendering (textures, 
+ * colors, material properties). Returns an object with an array of renderables; each renderable corresponds to a 
+ * different material in the model.
+ * @param {*} gl WebGL context
+ * @param {*} modelData Model data containing an array of renderables, each with geometry, texture, material properties, etc.
+ * @param {*} instanceMatrices An array of transformation matrices for instancing. Each matrix corresponds to an instance of the model to be rendered.
+ * @param {*} attribLocations An object mapping attribute names to their locations in the shader program, used for setting up the VAO.
+ * @returns An array of renderable objects, each containing VAO, vertex count, instance count, textures, colors, and material properties for rendering. 
+ */
 function buildModel(gl, modelData, instanceMatrices, attribLocations) {
-	// Costruisce un modello da renderare come istanze.
-	// Ogni materiale del modello riceve il suo VAO e renderables separati.
+	
+	// Each material in the model gets its own VAO and separate renderables, 
+	// allowing for different textures and properties per material while still benefiting 
+	// from instancing for all instances of that material.
 	const renderables = [];
 	for (const renderable of modelData.renderables) {
-		// Crea il VAO per questo materiale con tutti gli attributi necessari all'instancing.
+
 		const vaoData = createInstancedModel(gl, renderable.geometry, attribLocations, instanceMatrices);
-		// Assembla l'oggetto renderable con geometria, texture, colori e metadati.
 		const renderableObj = {
 			...vaoData,
 			texture: renderable.texture,
@@ -387,8 +428,14 @@ function buildModel(gl, modelData, instanceMatrices, attribLocations) {
 // OBJ/MTL LOADING
 // ============================================================================
 
-// Carica un modello OBJ ed il suo MTL, poi prepara i dati per il rendering.
-// Ogni renderable corrisponde a un materiale diverso.
+/**
+ * Loads an OBJ model and its associated MTL file, then prepares the data for rendering.
+ * Each renderable corresponds to a different material in the model.
+ * @param {*} gl WebGL context
+ * @param {*} objUrl URL of the OBJ file
+ * @param {*} options Options for loading the model (base directory for textures, whether to compute bounding sphere)
+ * @returns Promise resolving to the loaded model data
+ */
 async function loadOBJModel(gl, objUrl, options = {}) {
 
 	const objText = await loadTextResource(objUrl);
@@ -400,9 +447,9 @@ async function loadOBJModel(gl, objUrl, options = {}) {
 			const mtlUrl = resolveAssetUrl(objUrl, result.fileMtl);
 			const mtlText = await loadTextResource(mtlUrl);
 			glmReadMTL(mtlText, mesh);
-			extractBumpMaps(mtlText, mesh); // Estrai map_Bump dal MTL
+			extractBumpMaps(mtlText, mesh); 
 		} catch (error) {
-			console.warn(error);
+			console.warn('Error loading MTL file:', result.fileMtl, error);
 		}
 	}
 
@@ -413,11 +460,14 @@ async function loadOBJModel(gl, objUrl, options = {}) {
 
 	const renderables = [];
 
-	// Per ogni materiale crea un renderable (VAO + texture + proprietà)
+	// Create a renderable for each material, extracting only the faces that use that material. 
+	// This allows us to have different textures and properties per material while still benefiting 
+	// from instancing for all instances of that material. If the mesh has no materials, we create 
+	// a single renderable with all faces.
 	for (const materialIndex of materialIndices) {
 		const material = mesh.materials[materialIndex] || null;
 	
-		const geometry = meshToGeometry(mesh, [materialIndex]); // estrae solo le facce con il materiale corrente
+		const geometry = meshToGeometry(mesh, [materialIndex]); 
 		if (geometry.vertexCount === 0) continue;
 
 		const texturePath = materialTexturePath(material, 'diffuse');
@@ -440,9 +490,8 @@ async function loadOBJModel(gl, objUrl, options = {}) {
 				const img = await loadImageResource(bumpUrl);
 				bumpMapSize = [img.width, img.height];
 				bumpTexture = await loadTexture(gl, bumpUrl);
-				console.log('✓ Bump map caricato:', material?.name, '-', bumpPath, '- Dimensioni:', bumpMapSize);
 			} catch (error) {
-				console.warn('Errore caricamento bump map:', material?.name, '-', bumpPath, error);
+				console.warn('Error loading bump map:', material?.name, '-', bumpPath, error);
 			}
 		}
 
@@ -453,7 +502,7 @@ async function loadOBJModel(gl, objUrl, options = {}) {
 			try {
 				specularTexture = await loadTexture(gl, specularUrl);
 			} catch (error) {
-				console.warn('Errore caricamento specular map:', material?.name, '-', specularPath, error);
+				console.warn('Error loading specular map:', material?.name, '-', specularPath, error);
 			}
 		}
 
