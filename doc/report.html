@@ -209,19 +209,17 @@ lib/               &lt;!-- librerie esterne (gl-matrix, m4, dat.GUI) --&gt;</pre
         <h3>Matrici di trasformazione</h3>
         <p>
             A ogni frame vengono calcolate la matrice di proiezione prospettica (campo visivo di 60°,
-            near plane a 0.1, far plane a 200) e la view matrix ottenuta dalla camera. La view matrix
-            è il prodotto dell'inversa della camera matrix calcolata con <code>m4.lookAt()</code>.
-            Queste due matrici vengono passate come uniform allo shader generale.
+            near plane a 0.1, far plane a 200) e la view matrix ottenuta dalla camera. Queste due matrici 
+            vengono passate come uniform allo shader generale.
         </p>
         <p>
             Ogni oggetto nella scena non ha una propria model matrix passata come uniform: la
             trasformazione individuale è invece codificata nell'<em>instance matrix</em>, un attributo
             per istanza che lo shader legge dal buffer dedicato. In questo modo una singola draw call
             può piazzare decine di copie della stessa mesh in posizioni, orientamenti e scale diverse,
-             senza dover aggiornare uniform o emettere draw call separate per ogni oggetto.Per i funghi e il fuoco, 
-             che hanno animazioni dinamiche, le instance matrix vengono aggiornate ogni frame con 
-             <code>bufferSubData()</code>, evitando di ricreare i VAO o di emettere draw call separate
-            <a href="#riferimenti">[1]</a>.
+            senza dover aggiornare uniform o emettere draw call separate per ogni oggetto <a href="#riferimenti">[1]</a>. 
+            Per i funghi e il fuoco, che hanno animazioni dinamiche, le instance matrix vengono aggiornate ogni 
+            frame con <code>bufferSubData()</code>, evitando di ricreare i VAO o di emettere draw call separate <a href="#riferimenti">[2]</a>.
         </p>
 
         <h3>Rendering della skybox</h3>
@@ -237,7 +235,10 @@ lib/               &lt;!-- librerie esterne (gl-matrix, m4, dat.GUI) --&gt;</pre
         <p>
             Dopo la skybox, il depth test torna a <code>LESS</code> e si attiva il programma shader
             principale. <code>Forest.render()</code> itera su tutti i modelli e per ognuno sui suoi
-            <em>renderable</em>, cioè i sotto-oggetti separati per materiale. Per ciascuno viene:
+            <em>renderable</em>, cioè i sotto-oggetti separati per materiale. È necessario utilizzare
+            i renderable perché ogni materiale ha un set diverso di texture, e WebGL richiede una draw call
+            separata per ogni combinazione di VAO e texture. 
+            Per ciascuno di questi viene:
         </p>
         <p>
             (1) associato il VAO del materiale con <code>gl.bindVertexArray()</code>; (2) impostate
@@ -250,7 +251,7 @@ lib/               &lt;!-- librerie esterne (gl-matrix, m4, dat.GUI) --&gt;</pre
 
         <p>
 
-            Il risultato senza illuminazione iniziale era: 
+            Il risultato, senza illuminazione iniziale, è: 
             <img src="images/screenshot-instances.png" style="max-width: 100%; margin-top: 0.5rem;" />
         </p>
 
@@ -295,10 +296,8 @@ lib/               &lt;!-- librerie esterne (gl-matrix, m4, dat.GUI) --&gt;</pre
             <code>a_instanceMatrix</code> (location 2–5).
         </p>
         <p>
-            La posizione in world space si ottiene con <code>worldPos = a_instanceMatrix * vec4(a_position, 1.0)</code>.
-            La clip-space position è poi <code>u_projection * u_view * worldPos</code>. Le normali e le
-            tangenti vengono trasformate in world space moltiplicandole per la <code>mat3</code> estratta
-            dalla instance matrix; ciò garantisce che la direzione della normale si aggiorni
+            Le normali e le tangenti vengono trasformate in world space moltiplicandole per la
+             <code>mat3</code> estratta dalla instance matrix; ciò garantisce che la direzione della normale si aggiorni
             correttamente al variare della rotazione e scala dell'istanza. La posizione world e i
             vettori trasformati vengono passati al fragment shader come <code>varying</code>.
         </p>
@@ -307,29 +306,30 @@ lib/               &lt;!-- librerie esterne (gl-matrix, m4, dat.GUI) --&gt;</pre
         <p>
             Il fragment shader implementa il modello di illuminazione Phong con due sorgenti luminose.
             Il colore base del frammento è il prodotto tra il colore del materiale (<code>u_color</code>)
-            e il campione della texture diffuse. Su questo colore vengono sommati i
-            contributi delle due luci.
+            e il campione della texture diffuse. Su questo colore vengono sommati i contributi delle due luci.
         </p>
         <p>
-            <strong>Fuoco (luce puntiforme):</strong>  L'attenuazione è quadratica:
-            <code>brightness = intensity / (1.0 + 0.08 * dist²)</code>. Il termine diffuse usa un
-            <em>wrapped Lambert</em>: <code>dot(N, L) * 0.7 + 0.3</code>, che
+            <strong>Fuoco (luce puntiforme):</strong>  Una delle particolarità principali del progetto è proprio
+            la simulazione dell'illuminazione, in una scena notturna, di un fuoco da campo. 
+            Per ottenere un risultato visivamente realistico è presente un'attenuazione quadratica:
+            <code>brightness = intensity / (1.0 + 0.08 * dist²)</code> ed il termine diffuse usa un
+            <em>wrapped Lambert</em>: <code>dot(N, L) * wrap + (1-wrap)</code>, che
             permette a una piccola quota di luce di raggiungere anche le superfici parzialmente
             in ombra, ammorbidendo il passaggio luce/ombra tipico di una fiamma. Questa tecnica è in realtà
             un'approssimazione tratta da <a href="#riferimenti">[2]</a> e <a href="#riferimenti">[3]</a>, 
-            raggiunta dopo svariate prove nel tentativo di simulare l'effetto 
-            di subsurface scattering della luce del fuoco nell'aria circostante.
+            raggiunta dopo svariate prove nel tentativo di simulare l'effetto di subsurface scattering della 
+            luce del fuoco nell'aria circostante. Questa formulazione può essere interpretata come un'interpolazione lineare 
+            tra un'illuminazione costante e il Lambertiano standard, evitando che le zone in ombra diventino completamente nere.
+            In ogni caso questa tecnica mantiene il clamp del termine diffusivo classico <code>max(N·L, 0)</code>, evitando di 
+            illuminare le superfici completamente rivolte dalla parte opposta rispetto alla sorgente luminosa.
             
             La componente speculare usa la formula Blinn-Phong con il vettore <em>halfway</em>
             <code>H = normalize(L + V)</code>.
         </p>
         <p>
             <strong>Luna (luce direzionale):</strong> La direzione della luna è fornita come vettore
-            uniforme e invertita nello shader (<code>L_moon = normalize(-u_moonDirection)</code>).
-            L'intensità è fissa e bassa (0.3), per simulare un'illuminazione ambientale notturna
-            fredda (colore blu-grigio) e contribuisce sia al diffuse che allo speculare. Il colore 
-            finale è la somma dei quattro contributi (diffuse e speculare per ciascuna sorgente), poi 
-            bloccato nell'intervallo [0, 1] con <code>clamp()</code>.
+            uniforme e invertita nello shader. L'intensità è fissa e bassa (0.3), per simulare un'illuminazione 
+            ambientale notturna (colore blu-grigio) e contribuisce sia al diffuse che allo speculare. 
         </p>
         <p>
             Se è abilitata una specular map (<code>u_useSpecularMap</code>), il valore campionato
@@ -347,7 +347,8 @@ lib/               &lt;!-- librerie esterne (gl-matrix, m4, dat.GUI) --&gt;</pre
             normalizzando il risultato dopo la divisione prospettica (<code>t.xyz / t.w</code>).
             All'orizzonte il colore della texture è smorzato verso il nero con
             <code>smoothstep(-0.1, 0.3, dir.y)</code>, creando un effetto di oscurità notturna
-            senza una linea di demarcazione netta, per aggiungere realismo alla scena.
+            senza una linea di demarcazione netta, per aggiungere realismo alla scena ed evitare
+            che le stelle appaiano a ridosso del terreno.
         </p>
     </section>
 
@@ -355,7 +356,7 @@ lib/               &lt;!-- librerie esterne (gl-matrix, m4, dat.GUI) --&gt;</pre
     <section id="moduli">
         <h2>5. Moduli JavaScript</h2>
 
-        <h3>utilities.js &mdash; caricamento risorse e preparazione geometria</h3>
+        <h3>utilities.js: caricamento risorse e preparazione geometria</h3>
         <p>
             È il modulo più denso del progetto: contiene tutte le funzioni di caricamento asincrono,
             conversione della geometria e setup dei buffer GPU.
@@ -364,8 +365,7 @@ lib/               &lt;!-- librerie esterne (gl-matrix, m4, dat.GUI) --&gt;</pre
             <code>loadOBJModel()</code> è la funzione principale di caricamento: legge il file OBJ
             tramite la libreria <code>mesh_utils.js</code>, poi il file MTL associato, e costruisce
             per ogni materiale un oggetto <em>renderable</em> contenente geometria, texture e proprietà
-            del materiale. La separazione per materiale è necessaria perché ogni materiale può avere
-            texture diverse, e WebGL richiede una draw call separata per ogni combinazione texture/VAO.
+            del materiale. 
         </p>
         <p>
             <code>meshToGeometry()</code> converte la struttura interna della mesh OBJ in array piatti
@@ -589,14 +589,17 @@ lib/               &lt;!-- librerie esterne (gl-matrix, m4, dat.GUI) --&gt;</pre
     <section id="riferimenti">
         <h2>7. Riferimenti</h2>
         <p>
-        <div id="ref1" class="reference">
+            <div id="ref1" class="reference">
                 [1] WebGL 2 Fundamentals, "Instanced Drawing", <a href="https://webgl2fundamentals.org/webgl/lessons/webgl-instanced-drawing.html" target="_blank">https://webgl2fundamentals.org/webgl/lessons/webgl-instanced-drawing.html</a>
             </div>
             <div id="ref2" class="reference">
-                [2] Jordan Steven Stechart, "Lighting Models", <a href="https://www.jordanstevenstechart.com/lighting-models" target="_blank">https://www.jordanstevenstechart.com/lighting-models</a>
+                [2] Stack Overflow, "WebGL optimizing a vertex buffer that changes values vertex count every frame", <a href="https://stackoverflow.com/questions/19892022/webgl-optimizing-a-vertex-buffer-that-changes-values-vertex-count-every-frame" target="_blank">https://stackoverflow.com/questions/19892022/webgl-optimizing-a-vertex-buffer-that-changes-values-vertex-count-every-frame</a>
             </div>
-            <div id="ref3" class="reference">   
-                [3] Unity Manual, "Wrapped Diffuse", <a href="https://docs.unity.cn/Manual/SL-SurfaceShaderExamples-WrappedDiffuse.html" target="_blank">https://docs.unity.cn/Manual/SL-SurfaceShaderExamples-WrappedDiffuse.html</a>
+            <div id="ref3" class="reference">
+                [3] Jordan Steven Stechart, "Lighting Models", <a href="https://www.jordanstevenstechart.com/lighting-models" target="_blank">https://www.jordanstevenstechart.com/lighting-models</a>
+            </div>
+            <div id="ref4" class="reference">
+                [4] Unity Manual, "Wrapped Diffuse", <a href="https://docs.unity.cn/Manual/SL-SurfaceShaderExamples-WrappedDiffuse.html" target="_blank">https://docs.unity.cn/Manual/SL-SurfaceShaderExamples-WrappedDiffuse.html</a>
             </div>
         </p>
     </section>
