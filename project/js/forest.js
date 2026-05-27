@@ -291,7 +291,7 @@ class Forest {
         });
 
         for (let i = 1; i <= 3; i++) {
-            this.mushroomData[i - 1] = await loadOBJModel(gl, `assets/models/mushrooms${i}.obj`, {
+            this.mushroomData[i - 1] = await loadOBJModel(gl, `assets/models/mushroom${i}.obj`, {
                 textureBaseDir: 'assets/textures/mushrooms/',
                 computeBoundingSphere: true,
             });
@@ -340,13 +340,14 @@ class Forest {
             m4.multiply(m4.translation(2, this.groundTopY, -2), m4.multiply(m4.yRotation(45), m4.scaling(0.8, 0.8, 0.8))),
         ];
 
-        const polaroidMatrices = [
-            m4.multiply(
-                m4.translation(-3.25, 1.4, -3.85),  // X, Z, -Y di Blender
-                m4.multiply(m4.xRotation(degToRad(20)),
-                    m4.multiply(m4.zRotation(degToRad(-80)), // Y di Blender -> Z di WebGL
-                                m4.yRotation(degToRad(150)))))   // Z di Blender -> Y di WebGL
-        ];
+        const polaroidMatrices = [m4.translation(-3.29, 1.9, -3.8556)];
+        
+        // X, Z, -Y di Blender
+                    // m4.multiply(m4.yRotation(degToRad(180)),
+                    //             m4.zRotation(degToRad(-180)))) // Z di Blender -> X di WebGL
+
+                    // m4.multiply(m4.zRotation(degToRad(-80)), // Y di Blender -> Z di WebGL
+                    //             m4.yRotation(degToRad(150)))))   // Z di Blender -> Y di WebGL
 
         this.fireMatrices = fireMatrices;
         this.mouseMatrices = mouseMatrices;

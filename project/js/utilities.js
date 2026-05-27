@@ -11,15 +11,9 @@ async function loadTextResource(url) {
 }
 
 function resolveAssetUrl(basePath, assetPath) {
-	const path = String(assetPath || '').trim().replace(/\\/g, '/');
-	if (!path) return null;
-	if (path.startsWith('/')) return path.slice(1);
-	if (path.startsWith('assets/')) return path;
-	if (!basePath) return path;
-	const normalizedBase = basePath.endsWith('/')
-		? basePath
-		: basePath.slice(0, basePath.lastIndexOf('/') + 1);
-	return new URL(path, new URL(normalizedBase, window.location.href)).toString();
+    const path = String(assetPath || '').trim().replace(/\\/g, '/');
+    if (!path) return null;
+    return new URL(path, new URL(basePath, window.location.href)).toString();
 }
 
 async function loadImageResource(url) {
@@ -117,7 +111,7 @@ async function loadCubemap(gl, url) {
 // ============================================================================
 
 /**
- * Computes the bounding sphere for a given mesh.
+ * Approximate bounding sphere derived from axis-aligned bounding box.
  * @param {*} mesh Mesh object
  * @returns {Object} An object containing the center and radius of the bounding sphere.
  */
@@ -245,52 +239,48 @@ function meshToGeometry(mesh, allowedMaterialIndices = null) {
 	
 	for (let i = 1; i <= mesh.nface; i += 1) {
 		const face = mesh.face[i];
-		if (!face || face.n_v_e < 3) continue;
 
 		if (materialSet && !materialSet.has(face.material ?? 0)) continue;
 		
-		for (let t = 1; t < face.n_v_e - 1; t += 1) {
-			const vertexIndices = [0, t, t + 1];
-			const vertexData = vertexIndices.map(idx => {
-				const v = mesh.vert[face.vert[idx]];
-				const tc = mesh.textCoords[face.textCoordsIndex[idx]];
-				return {
-					pos: [v.x, v.y, v.z],
-					uv: [tc ? tc.u : 0, tc ? tc.v : 0],
-				};
-			});
-			// tangent calculation for bump mapping
-			const e1 = m4.subtractVectors(vertexData[1].pos, vertexData[0].pos, []);
-			const e2 = m4.subtractVectors(vertexData[2].pos, vertexData[0].pos, []);
-			const du1 = vertexData[1].uv[0] - vertexData[0].uv[0];
-			const dv1 = vertexData[1].uv[1] - vertexData[0].uv[1];
-			const du2 = vertexData[2].uv[0] - vertexData[0].uv[0];
-			const dv2 = vertexData[2].uv[1] - vertexData[0].uv[1];
-			
-			const denom = du1 * dv2 - du2 * dv1;
-			const f = Math.abs(denom) > 0.0001 ? 1.0 / denom : 0;
-			
-			const tangent = [
-				f * (dv2 * e1[0] - dv1 * e2[0]),
-				f * (dv2 * e1[1] - dv1 * e2[1]),
-				f * (dv2 * e1[2] - dv1 * e2[2]),
-			]; 
-			m4.normalize(tangent, tangent);
+		const vertexIndices = [0, 1, 2];
+		const vertexData = vertexIndices.map(idx => {
+			const v = mesh.vert[face.vert[idx]];
+			const tc = mesh.textCoords[face.textCoordsIndex[idx]];
+			return {
+				pos: [v.x, v.y, v.z],
+				uv: [tc ? tc.u : 0, tc ? tc.v : 0],
+			};
+		});
+		// tangent calculation for bump mapping
+		const e1 = m4.subtractVectors(vertexData[1].pos, vertexData[0].pos, []);
+		const e2 = m4.subtractVectors(vertexData[2].pos, vertexData[0].pos, []);
+		const du1 = vertexData[1].uv[0] - vertexData[0].uv[0];
+		const dv1 = vertexData[1].uv[1] - vertexData[0].uv[1];
+		const du2 = vertexData[2].uv[0] - vertexData[0].uv[0];
+		const dv2 = vertexData[2].uv[1] - vertexData[0].uv[1];
+		
+		const denom = du1 * dv2 - du2 * dv1;
+		const f = Math.abs(denom) > 0.0001 ? 1.0 / denom : 0;
+		
+		const tangent = [
+			f * (dv2 * e1[0] - dv1 * e2[0]),
+			f * (dv2 * e1[1] - dv1 * e2[1]),
+			f * (dv2 * e1[2] - dv1 * e2[2]),
+		]; 
+		m4.normalize(tangent, tangent);
 
-			for (let j = 0; j < 3; j++) {
-				const idx = vertexIndices[j];
-				positions.push(...vertexData[j].pos);
-				uvs.push(...vertexData[j].uv);
+		for (let j = 0; j < 3; j++) {
+			const idx = vertexIndices[j];
+			positions.push(...vertexData[j].pos);
+			uvs.push(...vertexData[j].uv);
 
-				const normal = mesh.normal[face.normalVertexIndex[idx]];
-				normals.push(
-					normal ? normal.i : 0,
-					normal ? normal.j : 1,
-					normal ? normal.k : 0
-				); // If the mesh doesn't have normals, we default to (0, 1, 0) 
-
-				tangents.push(tangent[0], tangent[1], tangent[2]);
-			}
+			const normal = mesh.normal[face.normalVertexIndex[idx]];
+			normals.push(
+				normal ? normal.i : 0,
+				normal ? normal.j : 1,
+				normal ? normal.k : 0
+			); // If the mesh doesn't have normals, we default to (0, 1, 0) 
+			tangents.push(tangent[0], tangent[1], tangent[2]);
 		}
 	}
 
@@ -447,7 +437,7 @@ async function loadOBJModel(gl, objUrl, options = {}) {
 			const mtlUrl = resolveAssetUrl(objUrl, result.fileMtl);
 			const mtlText = await loadTextResource(mtlUrl);
 			glmReadMTL(mtlText, mesh);
-			extractBumpMaps(mtlText, mesh); 
+			await extractBumpMaps(mtlText, mesh); 
 		} catch (error) {
 			console.warn('Error loading MTL file:', result.fileMtl, error);
 		}

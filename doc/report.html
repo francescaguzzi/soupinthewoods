@@ -369,8 +369,7 @@ lib/               &lt;!-- librerie esterne (gl-matrix, m4, dat.GUI) --&gt;</pre
         </p>
         <p>
             <code>meshToGeometry()</code> converte la struttura interna della mesh OBJ in array piatti
-            (<code>Float32Array</code>) pronti per la GPU. Gestisce la triangolazione dei poligoni
-            con più di tre vertici usando la tecnica del <em>fan</em> (v0-v1-v2, v0-v2-v3, …).
+            (<code>Float32Array</code>) pronti per la GPU. 
             Per ogni triangolo calcola anche la tangente nel tangent space, necessaria per il bump
             mapping: la tangente è ricavata algebricamente dagli edge del triangolo e dalle differenze
             UV, risolvendo il sistema <code>[T, B] = [e1, e2] * inv([dU, dV])</code>.
@@ -378,9 +377,8 @@ lib/               &lt;!-- librerie esterne (gl-matrix, m4, dat.GUI) --&gt;</pre
         <p>
             <code>loadTexture()</code> gestisce il caricamento asincrono delle texture con una cache
             globale (<code>Map</code>) che evita di ricaricare la stessa immagine più volte. Crea
-            immediatamente una texture placeholder bianca 1×1 (così la scena può già renderizzare
-            mentre le immagini arrivano), poi sostituisce i dati una volta che l'immagine è caricata.
-            Se le dimensioni sono potenza di 2, genera automaticamente i mipmap con
+            immediatamente una texture placeholder bianca 1×1 poi sostituisce i dati una volta che 
+            l'immagine è caricata. Se le dimensioni sono potenza di 2, genera automaticamente i mipmap con
             <code>generateMipmap()</code>; altrimenti imposta il wrapping a <code>CLAMP_TO_EDGE</code>
             e il filtro a <code>LINEAR</code>.
         </p>
@@ -393,18 +391,13 @@ lib/               &lt;!-- librerie esterne (gl-matrix, m4, dat.GUI) --&gt;</pre
             <code>computeBoundingSphere()</code> calcola la bounding sphere di una mesh iterando su
             tutti i vertici e trovando il bounding box axis-aligned; il centro è il punto medio del
             bounding box e il raggio è la metà della dimensione massima tra i tre assi. Questa
-            approssimazione è usata per il ray casting dei funghi e del fuoco.
+            approssimazione è usata per il ray casting dei funghi e del focolare.
         </p>
         <p>
             <code>raySphereIntersect()</code> implementa il test raggio-sfera analitico: dati origine
             e direzione del raggio e la sfera in world space (centro trasformato dalla model matrix,
             raggio scalato dalla norma della prima colonna della matrice), risolve l'equazione quadratica
             e restituisce true se il discriminante è non negativo.
-        </p>
-        <p>
-            <code>shouldAlphaClip()</code> è una funzione che attiva l'alpha clipping
-            automaticamente per i materiali il cui nome contiene la stringa <code>"leave"</code>,
-            cioè le foglie degli alberi.
         </p>
 
         <h3>scene.js &mdash; contesto WebGL e loop di rendering</h3>
@@ -437,7 +430,7 @@ lib/               &lt;!-- librerie esterne (gl-matrix, m4, dat.GUI) --&gt;</pre
             La gestione dei funghi è dinamica. I funghi vengono <em>generati</em> in posizioni
             casuali entro un anello (raggio 5–10 unità dal centro) con orientamento Y casuale.
             Il sistema mantiene sempre un massimo di 6 funghi visibili (<code>MAX_MUSHROOMS</code>):
-            quando il numero di funghi attivi scende sotto la soglia <code>RESPAWN_THRESHOLD</code> (2),
+            quando il numero di funghi attivi scende sotto la soglia <code>RESPAWN_THRESHOLD</code>
             nuovi funghi vengono aggiunti senza ricreare i VAO. Le istanze non usate vengono
             "nascoste" impostando la loro instance matrix a scala zero
             (<code>m4.scaling(0, 0, 0)</code>), e il buffer GPU è aggiornato con
@@ -580,7 +573,7 @@ lib/               &lt;!-- librerie esterne (gl-matrix, m4, dat.GUI) --&gt;</pre
         </p>
         <p>
             Il materiale su cui applicare l'alpha clipping è identificato automaticamente dalla
-            funzione <code>shouldAlphaClip()</code>, che controlla se il nome del materiale nel file
+            funzione <code>shouldAlphaClip()</code> in utilities.js, che controlla se il nome del materiale nel file
             MTL contiene la stringa <code>"leave"</code>.
         </p>
     </section>
