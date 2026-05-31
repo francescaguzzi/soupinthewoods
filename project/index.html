@@ -109,7 +109,7 @@
 
             // ===== FIRE (Point light with attenuation and Lambertian wrap) =====
             float dist_fire = distance(v_worldPos, u_firePosition);
-            float brightness_fire = u_fireIntensity / (1.0 + 0.08 * dist_fire * dist_fire);
+            float brightness_fire = u_fireIntensity / (1.0 + 0.08 * dist_fire * dist_fire); // quadratic attenuation with a small constant term to prevent singularity at the light position
             
             // Lambertian wrap means that even surfaces facing away from the light get some diffuse 
             // contribution, to simulate the effect of light subsurface scattering in the air around the fire

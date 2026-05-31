@@ -388,9 +388,6 @@ function createInstancedModel(gl, geometry, attribLocations, instanceMatrices) {
  */
 function buildModel(gl, modelData, instanceMatrices, attribLocations) {
 	
-	// Each material in the model gets its own VAO and separate renderables, 
-	// allowing for different textures and properties per material while still benefiting 
-	// from instancing for all instances of that material.
 	const renderables = [];
 	for (const renderable of modelData.renderables) {
 
