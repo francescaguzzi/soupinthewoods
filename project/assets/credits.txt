@@ -11,3 +11,4 @@ Icons: https://misnina.itch.io/stardew-valley-item-repixel
 
 Generator used for bump maps and speculars: https://cpetry.github.io/NormalMap-Online/
 
+Music by the amazing artist Tottomori !

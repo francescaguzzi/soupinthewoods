@@ -41,13 +41,19 @@ class UI {
     }
 
     _bindEvents() {
+
+        const music = document.getElementById('bgMusic');
         
         this.clearBtn.addEventListener('click', () => {
             this.container.dispatchEvent(new CustomEvent('clear-inventory'));
         });
         this.btnHelp.addEventListener('click', () => { this.openOverlay(); });
         this.btnClose.addEventListener('click', () => { this.closeOverlay(); });
-        this.btnStart.addEventListener('click', () => { this.closeOverlay(); });    
+        this.btnStart.addEventListener('click', () => { 
+            this.closeOverlay(); 
+            music.play();
+            music.volume = 0.3;
+        });    
         this.overlay.addEventListener('click', (e) => {
             if (e.target === this.overlay) {
                 this.closeOverlay();

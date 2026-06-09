@@ -76,7 +76,6 @@
             font-family: "Courier New", monospace;
             font-size: 9.5pt;
             background: #f4f4f4;
-            border-left: 3px solid #ccc;
             padding: 0.75rem 1rem;
             margin: 1rem 0;
             overflow-x: auto;
@@ -87,7 +86,6 @@
             font-family: "Courier New", monospace;
             font-size: 10pt;
             background: #f9f9f9;
-            border-left: 3px solid #bbb;
             padding: 0.5rem 1rem;
             margin: 0.75rem 0;
             display: block;
@@ -155,7 +153,12 @@
             Il modello di illuminazione Phong è stato esteso con un secondo contributo diffusivo e speculare per la <strong>luce direzionale della luna</strong>, che illumina la scena 
             in modo più uniforme e freddo, creando un contrasto con il calore del fuoco. 
             Per aumentare ulteriormente il realismo dei materiali, sono state utilizzate texture diffuse, <em>specular map</em> e <strong>bump map</strong>, che permettono di simulare dettagli 
-            superficiali senza aumentare la complessità geometrica. Per il rendering delle foglie degli alberi e dei cespugli, invece, sono state utilizzate delle 
+            superficiali senza aumentare la complessità geometrica. 
+            Il bump mapping si può notare particolarmente sul legno (sia sui tronchi degli alberi che sui rami in prossimità del focolare), sul terreno e sul pentolone, 
+            mentre le specular map aggiungono riflessi più realistici su tutti gli oggetti in prossimità del fuoco (pentola, rocce, rami). Si è optato per l'utilizzo 
+            delle specular map poichè molte erano già presenti nel modello 3D scaricato dalla repository (SketchFab).
+            
+            Per il rendering delle foglie degli alberi e dei cespugli, invece, sono state utilizzate delle 
             geometrie piatte con texture trasparenti, disegnate con blending (<strong>alpha clipping</strong>) e senza culling delle facce, per garantire la visibilità da entrambi i lati.
         </p>
         <p>
