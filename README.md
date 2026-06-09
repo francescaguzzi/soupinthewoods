@@ -4,6 +4,6 @@ Soup in the Woods is a small interactive game developed for my Computer Graphics
 
 ![screenshot](doc/images/screenshot-completo.png)
 
-The app is available for live preview at https://francescaguzzi.github.io/texelwoods
+The app is available for live preview at https://francescaguzzi.github.io/soupinthewoods
 
 
